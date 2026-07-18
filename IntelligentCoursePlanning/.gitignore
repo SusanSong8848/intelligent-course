@@ -1,0 +1,53 @@
+# 构建产物
+build/
+out/
+cmake-build-*/
+*.exe
+*.out
+*.o
+*.obj
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+
+# IDE 文件
+.vs/
+.vscode/
+.idea/
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.user
+*.suo
+*.DS_Store
+
+# CMake 生成文件
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+Makefile
+
+# 依赖包
+_deps/
+FetchContent/
+
+# 编译中间文件
+*.pch
+*.pdb
+*.ilk
+*.exp
+
+# 临时文件
+*.tmp
+*.temp
+*.log
+*.swp
+*~
+
+# 操作系统
+Thumbs.db
+Desktop.ini
