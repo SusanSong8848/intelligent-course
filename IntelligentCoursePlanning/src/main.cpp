@@ -1,3 +1,22 @@
+/**
+ * @file    main.cpp
+ * @brief   智能课程规划系统 - 程序入口
+ * @details 阶段一的数据加载验证程序，后续将扩展为完整的规划调度器。
+ *
+ *          当前功能：
+ *          1. 加载 course_info.csv 和 course_time.csv 数据
+ *          2. 加载 JSON 约束配置文件
+ *          3. 打印数据集统计信息和课程详情用于验证
+ *          4. 通过 get_exe_dir() 自动定位 data 目录
+ *
+ *          构建方式：
+ *          cmake -B build -S . && cmake --build build --config Release
+ *          运行：build/Release/course_planner.exe
+ *
+ * @author  IntelligentCoursePlanning Team
+ * @date    2026-07
+ */
+
 #include <iostream>
 #include <string>
 #include <iomanip>
@@ -16,7 +35,14 @@
 
 using namespace course_planner;
 
-/// 获取可执行文件所在目录
+/**
+ * @brief 获取可执行文件所在目录的绝对路径
+ *
+ * Windows 使用 GetModuleFileNameA API，
+ * Linux 使用 /proc/self/exe 符号链接。
+ *
+ * @return exe 所在目录路径字符串
+ */
 std::string get_exe_dir() {
 #ifdef _WIN32
     char buffer[MAX_PATH];
@@ -44,12 +70,24 @@ std::string get_exe_dir() {
 #endif
 }
 
-/// 构造data目录下的文件路径
+/**
+ * @brief 根据文件名构造 data 目录下的完整路径
+ * @param filename data 目录下的文件名
+ * @return 完整文件路径
+ */
 std::string data_path(const std::string& filename) {
     return get_exe_dir() + "/data/" + filename;
 }
 
-/// 打印数据集统计信息
+/**
+ * @brief 打印数据集统计信息
+ *
+ * 输出内容包括：
+ * - 总教学班数、课程基础数、时间记录数
+ * - 按开课季节、课程类别、推荐学期的课程分布
+ *
+ * @param dataset 已加载的课程数据集
+ */
 void print_dataset_stats(const CourseDataset& dataset) {
     std::cout << "\n========================================" << std::endl;
     std::cout << "  课程数据集统计" << std::endl;
@@ -58,7 +96,6 @@ void print_dataset_stats(const CourseDataset& dataset) {
     std::cout << "课程基础数: " << dataset.total_courses << std::endl;
     std::cout << "时间记录数: " << dataset.total_time_slots << std::endl;
 
-    // 按学期统计
     std::map<std::string, int> semester_count;
     std::map<std::string, int> category_count;
     std::map<int, int> term_count;
@@ -85,7 +122,14 @@ void print_dataset_stats(const CourseDataset& dataset) {
     }
 }
 
-/// 打印某个课程基础及其教学班信息
+/**
+ * @brief 打印指定课程的详细信息
+ *
+ * 输出课程名称、院系、学分、先修关系、所有教学班的教师/教室/时间等信息。
+ *
+ * @param dataset 课程数据集
+ * @param basic_id 课程基础序号
+ */
 void print_course_detail(const CourseDataset& dataset, const std::string& basic_id) {
     auto it = dataset.course_map.find(basic_id);
     if (it == dataset.course_map.end()) {
@@ -132,7 +176,13 @@ void print_course_detail(const CourseDataset& dataset, const std::string& basic_
     }
 }
 
-/// 打印约束信息
+/**
+ * @brief 打印约束配置的详细信息
+ *
+ * 输出目标院系、必修/选修课程数、学分上下限、避让时段、偏好时段等。
+ *
+ * @param constraint 从 JSON 加载的约束对象
+ */
 void print_constraint_info(const Constraint& constraint) {
     std::cout << "\n========================================" << std::endl;
     std::cout << "  约束配置信息" << std::endl;
@@ -167,6 +217,18 @@ void print_constraint_info(const Constraint& constraint) {
     }
 }
 
+/**
+ * @brief 程序主入口
+ *
+ * 执行三阶段数据加载：
+ * 1. 加载课程基本信息（course_info.csv）
+ * 2. 加载开课时间信息（course_time.csv）
+ * 3. 加载规划约束（sample_constraints.json）
+ *
+ * 然后打印数据集统计、约束信息和示例课程详情。
+ *
+ * @return 0 成功，1 失败
+ */
 int main() {
     try {
         std::cout << "========================================" << std::endl;
@@ -190,16 +252,13 @@ int main() {
 
         // 打印统计信息
         print_dataset_stats(dataset);
-
-        // 打印约束信息
         print_constraint_info(constraint);
 
-        // 示例：查看某门课的详细信息（数据结构）
+        // 示例：查看某门必修课的详细信息
         std::cout << "\n========================================" << std::endl;
         std::cout << "  示例：查看必修课程" << std::endl;
         std::cout << "========================================" << std::endl;
 
-        // 从约束中找到一门必修课来展示
         if (!constraint.required_course_basic_IDs.empty()) {
             std::string sample_id = *constraint.required_course_basic_IDs.begin();
             print_course_detail(dataset, sample_id);

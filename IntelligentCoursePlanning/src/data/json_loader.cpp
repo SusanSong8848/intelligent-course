@@ -1,3 +1,13 @@
+/**
+ * @file    json_loader.cpp
+ * @brief   JSON 约束配置加载器实现
+ * @details 解析 sample_constraints.json 及 major_profiles/*.json 中的规划约束。
+ *          从 target_course_scope 提取必修/选修课程集合，从 avoid_time_blocks /
+ *          preferred_time_blocks 提取时间偏好，并构造完整的 Constraint 对象。
+ * @author  IntelligentCoursePlanning Team
+ * @date    2026-07
+ */
+
 #include "json_loader.h"
 
 #include <iostream>
@@ -10,6 +20,21 @@ namespace course_planner {
 
 using utils::JsonValue;
 
+/**
+ * @brief 从 JSON 字符串解析约束条件
+ *
+ * 解析的字段包括：
+ * - profile_name / target_department: 配置基本信息
+ * - target_course_scope.required_course_basic_IDs: 必修课程ID集合
+ * - target_course_scope.elective_candidate_course_basic_IDs: 选修候选ID集合
+ * - max_credit_per_semester / min_credit_per_semester: 每学期学分限制
+ * - min_total_credit / required_credit / elective_min_credit: 总学分要求
+ * - avoid_time_blocks: 避让时段（含 hard/soft 标记）
+ * - preferred_time_blocks: 偏好时段
+ *
+ * @param json_content JSON 字符串
+ * @return 解析后的 Constraint 对象
+ */
 Constraint parse_constraints_json(const std::string& json_content) {
     Constraint constraint;
     JsonValue j = utils::parse_json(json_content);
@@ -44,7 +69,6 @@ Constraint parse_constraints_json(const std::string& json_content) {
     // --- 每学期学分上限 ---
     if (j.contains("max_credit_per_semester")) {
         const auto& obj = j["max_credit_per_semester"];
-        // 遍历object的所有key
         for (int t = 1; t <= 8; ++t) {
             std::string key = std::to_string(t);
             if (obj.contains(key)) {
@@ -53,7 +77,7 @@ Constraint parse_constraints_json(const std::string& json_content) {
         }
     }
 
-    // --- 每学期学分下限（可选） ---
+    // --- 每学期学分下限（可选字段） ---
     if (j.contains("min_credit_per_semester")) {
         const auto& obj = j["min_credit_per_semester"];
         for (int t = 1; t <= 8; ++t) {
@@ -132,6 +156,11 @@ Constraint parse_constraints_json(const std::string& json_content) {
     return constraint;
 }
 
+/**
+ * @brief 从 JSON 文件路径加载约束条件
+ * @param filepath JSON 文件路径
+ * @return 解析后的 Constraint 对象
+ */
 Constraint load_constraints_from_json(const std::string& filepath) {
     std::string content = read_file_content(filepath);
     return parse_constraints_json(content);

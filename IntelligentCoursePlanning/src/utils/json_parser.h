@@ -1,3 +1,22 @@
+/**
+ * @file    json_parser.h
+ * @brief   轻量级 JSON 解析器（零外部依赖，内嵌实现）
+ * @details 为课程规划系统提供自给自足的 JSON 解析能力，无需下载任何第三方库。
+ *
+ *          主要组件：
+ *          - JsonValue: 动态类型的 JSON 值容器，支持 object/array/string/number/bool/null
+ *          - JsonParser: 递归下降 JSON 解析器，支持嵌套结构和 Unicode 转义
+ *          - parse_json(): 便捷解析函数
+ *
+ *          设计决策：
+ *          - 选择自实现而非 nlohmann/json，避免 FetchContent 网络下载失败问题
+ *          - 使用 C++17 std::variant 存储多态值
+ *          - number 类型区分 int64_t 和 double 以精确表示 JSON 中的整数和浮点数
+ *
+ * @author  IntelligentCoursePlanning Team
+ * @date    2026-07
+ */
+
 #pragma once
 
 #include <string>
@@ -12,8 +31,13 @@
 
 namespace course_planner::utils {
 
-/// 轻量级 JSON 解析器（内嵌实现，零外部依赖）
-/// 支持 object, array, string, number (int/double), bool, null
+/**
+ * @brief 动态类型 JSON 值容器
+ *
+ * 支持的类型: Null, Bool, Int, Double, String, Array, Object
+ * 使用 C++17 std::variant 内部存储，通过 type() 获取当前类型，
+ * 通过 get_xxx() 方法获取对应类型的值。
+ */
 class JsonValue {
 public:
     enum Type { NUL, BOOL, INT, DOUBLE, STRING, ARRAY, OBJECT };
@@ -54,11 +78,13 @@ public:
     const Array& get_array() const { return std::get<Array>(value_); }
     const Object& get_object() const { return std::get<Object>(value_); }
 
+    /** @brief 检查 object 中是否存在指定 key */
     bool contains(const std::string& key) const {
         if (type_ != OBJECT) return false;
         return std::get<Object>(value_).count(key) > 0;
     }
 
+    /** @brief 按 key 访问 object 成员（不存在时返回静态空值） */
     const JsonValue& operator[](const std::string& key) const {
         static JsonValue null_val;
         const auto& obj = std::get<Object>(value_);
@@ -67,6 +93,7 @@ public:
         return null_val;
     }
 
+    /** @brief 按下标访问 array 元素 */
     const JsonValue& operator[](size_t index) const {
         return std::get<Array>(value_).at(index);
     }
@@ -77,28 +104,43 @@ public:
         return 0;
     }
 
-    // value 方法：如果存在则返回，否则返回默认值
+    /** @brief 按 key 获取 string 值，不存在时返回默认值 */
     std::string value(const std::string& key, const char* default_val) const {
         if (contains(key)) return (*this)[key].get_string();
         return default_val;
     }
+    /** @brief 按 key 获取 int 值，不存在时返回默认值 */
     int value(const std::string& key, int default_val) const {
         if (contains(key)) return (*this)[key].get_int();
         return default_val;
     }
+    /** @brief 按 key 获取 double 值，不存在时返回默认值 */
     double value(const std::string& key, double default_val) const {
         if (contains(key)) return (*this)[key].get_double();
         return default_val;
     }
+    /** @brief 按 key 获取 bool 值，不存在时返回默认值 */
     bool value(const std::string& key, bool default_val) const {
         if (contains(key)) return (*this)[key].get_bool();
         return default_val;
     }
 };
 
-/// JSON 解析器实现
+/**
+ * @brief 递归下降 JSON 解析器
+ *
+ * 从 JSON 文本字符串构建 JsonValue 树。
+ * 支持标准 JSON 语法：对象、数组、字符串、数字、布尔、null。
+ * 支持 Unicode 转义 \\uXXXX（转为 UTF-8 编码）。
+ */
 class JsonParser {
 public:
+    /**
+     * @brief 解析 JSON 字符串并返回 JsonValue
+     * @param json_str JSON 格式的字符串
+     * @return 解析后的 JsonValue
+     * @throws std::runtime_error 如果 JSON 格式非法
+     */
     static JsonValue parse(const std::string& json_str) {
         size_t pos = 0;
         skip_ws(json_str, pos);
@@ -129,181 +171,196 @@ private:
         ++pos;
     }
 
-    static JsonValue parse_value(const std::string& s, size_t& pos) {
-        skip_ws(s, pos);
-        if (pos >= s.size()) throw std::runtime_error("Unexpected end of JSON");
+    static JsonValue parse_value(const std::string& s, size_t& pos);
+    static JsonValue parse_object(const std::string& s, size_t& pos);
+    static JsonValue parse_array(const std::string& s, size_t& pos);
+    static std::string parse_string_raw(const std::string& s, size_t& pos);
+    static JsonValue parse_string(const std::string& s, size_t& pos);
+    static JsonValue parse_number(const std::string& s, size_t& pos);
+    static JsonValue parse_bool(const std::string& s, size_t& pos);
+    static JsonValue parse_null(const std::string& s, size_t& pos);
+};
 
-        char c = s[pos];
-        if (c == '{') return parse_object(s, pos);
-        if (c == '[') return parse_array(s, pos);
-        if (c == '"') return parse_string(s, pos);
-        if (c == 't' || c == 'f') return parse_bool(s, pos);
-        if (c == 'n') return parse_null(s, pos);
-        if (c == '-' || std::isdigit(static_cast<unsigned char>(c))) return parse_number(s, pos);
+// ============================================================================
+// JsonParser 内联实现
+// ============================================================================
 
-        throw std::runtime_error("Unexpected character '" + std::string(1, c) + "' at position " + std::to_string(pos));
-    }
+inline JsonValue JsonParser::parse_value(const std::string& s, size_t& pos) {
+    skip_ws(s, pos);
+    if (pos >= s.size()) throw std::runtime_error("Unexpected end of JSON");
 
-    static JsonValue parse_object(const std::string& s, size_t& pos) {
-        expect(s, pos, '{');
-        JsonValue::Object obj;
-        skip_ws(s, pos);
-        if (peek(s, pos) == '}') {
-            ++pos;
-            return JsonValue(obj);
-        }
+    char c = s[pos];
+    if (c == '{') return parse_object(s, pos);
+    if (c == '[') return parse_array(s, pos);
+    if (c == '"') return parse_string(s, pos);
+    if (c == 't' || c == 'f') return parse_bool(s, pos);
+    if (c == 'n') return parse_null(s, pos);
+    if (c == '-' || std::isdigit(static_cast<unsigned char>(c))) return parse_number(s, pos);
 
-        while (true) {
-            skip_ws(s, pos);
-            std::string key = parse_string_raw(s, pos);
-            skip_ws(s, pos);
-            expect(s, pos, ':');
-            skip_ws(s, pos);
-            obj[key] = parse_value(s, pos);
-            skip_ws(s, pos);
-            if (peek(s, pos) == ',') {
-                ++pos;
-                continue;
-            }
-            if (peek(s, pos) == '}') {
-                ++pos;
-                break;
-            }
-            throw std::runtime_error("Expected ',' or '}' at position " + std::to_string(pos));
-        }
+    throw std::runtime_error("Unexpected character '" + std::string(1, c) + "' at position " + std::to_string(pos));
+}
+
+inline JsonValue JsonParser::parse_object(const std::string& s, size_t& pos) {
+    expect(s, pos, '{');
+    JsonValue::Object obj;
+    skip_ws(s, pos);
+    if (peek(s, pos) == '}') {
+        ++pos;
         return JsonValue(obj);
     }
 
-    static JsonValue parse_array(const std::string& s, size_t& pos) {
-        expect(s, pos, '[');
-        JsonValue::Array arr;
+    while (true) {
         skip_ws(s, pos);
-        if (peek(s, pos) == ']') {
+        std::string key = parse_string_raw(s, pos);
+        skip_ws(s, pos);
+        expect(s, pos, ':');
+        skip_ws(s, pos);
+        obj[key] = parse_value(s, pos);
+        skip_ws(s, pos);
+        if (peek(s, pos) == ',') {
             ++pos;
-            return JsonValue(arr);
+            continue;
         }
+        if (peek(s, pos) == '}') {
+            ++pos;
+            break;
+        }
+        throw std::runtime_error("Expected ',' or '}' at position " + std::to_string(pos));
+    }
+    return JsonValue(obj);
+}
 
-        while (true) {
-            skip_ws(s, pos);
-            arr.push_back(parse_value(s, pos));
-            skip_ws(s, pos);
-            if (peek(s, pos) == ',') {
-                ++pos;
-                continue;
-            }
-            if (peek(s, pos) == ']') {
-                ++pos;
-                break;
-            }
-            throw std::runtime_error("Expected ',' or ']' at position " + std::to_string(pos));
-        }
+inline JsonValue JsonParser::parse_array(const std::string& s, size_t& pos) {
+    expect(s, pos, '[');
+    JsonValue::Array arr;
+    skip_ws(s, pos);
+    if (peek(s, pos) == ']') {
+        ++pos;
         return JsonValue(arr);
     }
 
-    static std::string parse_string_raw(const std::string& s, size_t& pos) {
-        expect(s, pos, '"');
-        std::string result;
-        while (pos < s.size()) {
-            char c = s[pos];
-            if (c == '"') {
-                ++pos;
-                return result;
-            }
-            if (c == '\\') {
-                ++pos;
-                if (pos >= s.size()) throw std::runtime_error("Unexpected end in string escape");
-                char esc = s[pos];
-                switch (esc) {
-                    case '"':  result += '"'; break;
-                    case '\\': result += '\\'; break;
-                    case '/':  result += '/'; break;
-                    case 'b':  result += '\b'; break;
-                    case 'f':  result += '\f'; break;
-                    case 'n':  result += '\n'; break;
-                    case 'r':  result += '\r'; break;
-                    case 't':  result += '\t'; break;
-                    case 'u': {
-                        // 简单处理 \\uXXXX（取码点低字节）
-                        if (pos + 4 >= s.size()) throw std::runtime_error("Invalid \\u escape");
-                        std::string hex = s.substr(pos + 1, 4);
-                        unsigned int code = static_cast<unsigned int>(std::strtoul(hex.c_str(), nullptr, 16));
-                        if (code < 0x80) {
-                            result += static_cast<char>(code);
-                        } else if (code < 0x800) {
-                            result += static_cast<char>(0xC0 | (code >> 6));
-                            result += static_cast<char>(0x80 | (code & 0x3F));
-                        } else {
-                            result += static_cast<char>(0xE0 | (code >> 12));
-                            result += static_cast<char>(0x80 | ((code >> 6) & 0x3F));
-                            result += static_cast<char>(0x80 | (code & 0x3F));
-                        }
-                        pos += 4;
-                    } break;
-                    default: throw std::runtime_error("Invalid escape char: \\" + std::string(1, esc));
-                }
-                ++pos;
-            } else {
-                result += c;
-                ++pos;
-            }
-        }
-        throw std::runtime_error("Unterminated string");
-    }
-
-    static JsonValue parse_string(const std::string& s, size_t& pos) {
-        return JsonValue(parse_string_raw(s, pos));
-    }
-
-    static JsonValue parse_number(const std::string& s, size_t& pos) {
-        size_t start = pos;
-        bool is_double = false;
-        if (peek(s, pos) == '-') ++pos;
-
-        while (pos < s.size() && std::isdigit(static_cast<unsigned char>(s[pos]))) ++pos;
-
-        if (peek(s, pos) == '.') {
-            is_double = true;
+    while (true) {
+        skip_ws(s, pos);
+        arr.push_back(parse_value(s, pos));
+        skip_ws(s, pos);
+        if (peek(s, pos) == ',') {
             ++pos;
-            while (pos < s.size() && std::isdigit(static_cast<unsigned char>(s[pos]))) ++pos;
+            continue;
         }
-
-        if (peek(s, pos) == 'e' || peek(s, pos) == 'E') {
-            is_double = true;
+        if (peek(s, pos) == ']') {
             ++pos;
-            if (peek(s, pos) == '+' || peek(s, pos) == '-') ++pos;
-            while (pos < s.size() && std::isdigit(static_cast<unsigned char>(s[pos]))) ++pos;
+            break;
         }
+        throw std::runtime_error("Expected ',' or ']' at position " + std::to_string(pos));
+    }
+    return JsonValue(arr);
+}
 
-        std::string num_str = s.substr(start, pos - start);
-        if (is_double) {
-            return JsonValue(std::strtod(num_str.c_str(), nullptr));
+/** @brief 解析 JSON 字符串，返回去引号的内容 */
+inline std::string JsonParser::parse_string_raw(const std::string& s, size_t& pos) {
+    expect(s, pos, '"');
+    std::string result;
+    while (pos < s.size()) {
+        char c = s[pos];
+        if (c == '"') {
+            ++pos;
+            return result;
+        }
+        if (c == '\\') {
+            ++pos;
+            if (pos >= s.size()) throw std::runtime_error("Unexpected end in string escape");
+            char esc = s[pos];
+            switch (esc) {
+                case '"':  result += '"'; break;
+                case '\\': result += '\\'; break;
+                case '/':  result += '/'; break;
+                case 'b':  result += '\b'; break;
+                case 'f':  result += '\f'; break;
+                case 'n':  result += '\n'; break;
+                case 'r':  result += '\r'; break;
+                case 't':  result += '\t'; break;
+                case 'u': {
+                    // 处理 \\uXXXX Unicode 转义，转为 UTF-8 编码
+                    if (pos + 4 >= s.size()) throw std::runtime_error("Invalid \\u escape");
+                    std::string hex = s.substr(pos + 1, 4);
+                    unsigned int code = static_cast<unsigned int>(std::strtoul(hex.c_str(), nullptr, 16));
+                    if (code < 0x80) {
+                        result += static_cast<char>(code);
+                    } else if (code < 0x800) {
+                        result += static_cast<char>(0xC0 | (code >> 6));
+                        result += static_cast<char>(0x80 | (code & 0x3F));
+                    } else {
+                        result += static_cast<char>(0xE0 | (code >> 12));
+                        result += static_cast<char>(0x80 | ((code >> 6) & 0x3F));
+                        result += static_cast<char>(0x80 | (code & 0x3F));
+                    }
+                    pos += 4;
+                } break;
+                default: throw std::runtime_error("Invalid escape char: \\" + std::string(1, esc));
+            }
+            ++pos;
         } else {
-            return JsonValue(static_cast<int64_t>(std::strtoll(num_str.c_str(), nullptr, 10)));
+            result += c;
+            ++pos;
         }
     }
+    throw std::runtime_error("Unterminated string");
+}
 
-    static JsonValue parse_bool(const std::string& s, size_t& pos) {
-        if (s.substr(pos, 4) == "true") {
-            pos += 4;
-            return JsonValue(true);
-        }
-        if (s.substr(pos, 5) == "false") {
-            pos += 5;
-            return JsonValue(false);
-        }
-        throw std::runtime_error("Invalid boolean at position " + std::to_string(pos));
+inline JsonValue JsonParser::parse_string(const std::string& s, size_t& pos) {
+    return JsonValue(parse_string_raw(s, pos));
+}
+
+/** @brief 解析 JSON 数值，自动区分整数和浮点数 */
+inline JsonValue JsonParser::parse_number(const std::string& s, size_t& pos) {
+    size_t start = pos;
+    bool is_double = false;
+    if (peek(s, pos) == '-') ++pos;
+
+    while (pos < s.size() && std::isdigit(static_cast<unsigned char>(s[pos]))) ++pos;
+
+    if (peek(s, pos) == '.') {
+        is_double = true;
+        ++pos;
+        while (pos < s.size() && std::isdigit(static_cast<unsigned char>(s[pos]))) ++pos;
     }
 
-    static JsonValue parse_null(const std::string& s, size_t& pos) {
-        if (s.substr(pos, 4) == "null") {
-            pos += 4;
-            return JsonValue();
-        }
-        throw std::runtime_error("Invalid null at position " + std::to_string(pos));
+    if (peek(s, pos) == 'e' || peek(s, pos) == 'E') {
+        is_double = true;
+        ++pos;
+        if (peek(s, pos) == '+' || peek(s, pos) == '-') ++pos;
+        while (pos < s.size() && std::isdigit(static_cast<unsigned char>(s[pos]))) ++pos;
     }
-};
 
-/// 便捷解析函数
+    std::string num_str = s.substr(start, pos - start);
+    if (is_double) {
+        return JsonValue(std::strtod(num_str.c_str(), nullptr));
+    } else {
+        return JsonValue(static_cast<int64_t>(std::strtoll(num_str.c_str(), nullptr, 10)));
+    }
+}
+
+inline JsonValue JsonParser::parse_bool(const std::string& s, size_t& pos) {
+    if (s.substr(pos, 4) == "true") {
+        pos += 4;
+        return JsonValue(true);
+    }
+    if (s.substr(pos, 5) == "false") {
+        pos += 5;
+        return JsonValue(false);
+    }
+    throw std::runtime_error("Invalid boolean at position " + std::to_string(pos));
+}
+
+inline JsonValue JsonParser::parse_null(const std::string& s, size_t& pos) {
+    if (s.substr(pos, 4) == "null") {
+        pos += 4;
+        return JsonValue();
+    }
+    throw std::runtime_error("Invalid null at position " + std::to_string(pos));
+}
+
+/** @brief 便捷 JSON 解析函数 */
 inline JsonValue parse_json(const std::string& json_str) {
     return JsonParser::parse(json_str);
 }

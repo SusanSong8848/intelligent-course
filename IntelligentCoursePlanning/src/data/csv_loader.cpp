@@ -1,3 +1,16 @@
+/**
+ * @file    csv_loader.cpp
+ * @brief   CSV 数据加载器实现
+ * @details 实现课程数据的 CSV 文件加载逻辑：
+ *          - parse_csv_line: 带引号转义的 CSV 行解析
+ *          - read_file_content: 文件读取 + BOM 去除
+ *          - load_course_info_csv: 从 course_info.csv 构建 CourseBasic 和 CourseOffering
+ *          - load_course_time_csv: 从 course_time.csv 为教学班补充时间槽
+ *          加载完成后同步 course_map 和 all_offerings 保证数据一致性。
+ * @author  IntelligentCoursePlanning Team
+ * @date    2026-07
+ */
+
 #include "csv_loader.h"
 
 #include <fstream>
@@ -31,9 +44,19 @@ const std::vector<CourseOffering>* CourseDataset::get_offerings(
 }
 
 // ============================================================================
-// CSV行解析
+// CSV 行解析
 // ============================================================================
 
+/**
+ * @brief 解析一行 CSV 文本为字段数组
+ *
+ * 支持双引号包裹的字段，以及引号内的转义双引号 ""。
+ * 例如: hello,"world, foo",bar -> ["hello", "world, foo", "bar"]
+ *       "He said ""hi""",ok -> ["He said \"hi\"", "ok"]
+ *
+ * @param line 一行 CSV 文本
+ * @return 解析后的字段数组（每个字段已 trim）
+ */
 std::vector<std::string> parse_csv_line(const std::string& line) {
     std::vector<std::string> fields;
     std::string current;
@@ -61,7 +84,7 @@ std::vector<std::string> parse_csv_line(const std::string& line) {
                 fields.push_back(utils::trim(current));
                 current.clear();
             } else {
-                // 跳过回车符
+                // 跳过回车符（Windows换行符 \r\n 中的 \r）
                 if (ch != '\r') {
                     current += ch;
                 }
@@ -78,6 +101,15 @@ std::vector<std::string> parse_csv_line(const std::string& line) {
 // 文件读取
 // ============================================================================
 
+/**
+ * @brief 读取整个文件内容为字符串
+ *
+ * 以二进制模式打开文件，读取全部内容，然后自动去除 UTF-8 BOM 头。
+ *
+ * @param filepath 文件路径
+ * @return 文件内容字符串
+ * @throws std::runtime_error 文件无法打开时抛出
+ */
 std::string read_file_content(const std::string& filepath) {
     std::ifstream file(filepath, std::ios::binary);
     if (!file.is_open()) {
@@ -88,7 +120,7 @@ std::string read_file_content(const std::string& filepath) {
     oss << file.rdbuf();
     std::string content = oss.str();
 
-    // 去除UTF-8 BOM
+    // 去除 UTF-8 BOM
     content = utils::remove_bom(content);
 
     return content;
@@ -98,6 +130,20 @@ std::string read_file_content(const std::string& filepath) {
 // course_info.csv 加载
 // ============================================================================
 
+/**
+ * @brief 从 course_info.csv 内容加载课程信息和教学班
+ *
+ * 处理流程：
+ * 1. 跳过表头行
+ * 2. 逐行解析 14 个字段
+ * 3. 构造 CourseOffering 对象
+ * 4. 首次遇到某个 course_basic_ID 时创建 CourseBasic 并解析先修关系
+ * 5. 将教学班加入对应 CourseBasic 的 offerings 列表和 all_offerings
+ *
+ * @param csv_content CSV 文件内容
+ * @param dataset 输出数据集
+ * @return 成功加载的教学班数
+ */
 int load_course_info_csv(const std::string& csv_content, CourseDataset& dataset) {
     std::istringstream stream(csv_content);
     std::string line;
@@ -176,6 +222,23 @@ int load_course_info_csv(const std::string& csv_content, CourseDataset& dataset)
 // course_time.csv 加载
 // ============================================================================
 
+/**
+ * @brief 从 course_time.csv 内容为教学班补充上课时间信息
+ *
+ * 处理流程：
+ * 1. 跳过表头行
+ * 2. 逐行解析 5 个字段 (course_basic_ID, course_sp_ID, day, beg, last)
+ * 3. 构造 TimeSlot 并关联到对应的教学班
+ * 4. 加载完成后同步 all_offerings（从 course_map 重建）
+ *
+ * 同步措施：
+ * 由于 all_offerings 和 course_map 中的 offerings 是独立副本，
+ * 必须在此函数末尾重建 all_offerings 以保证时间槽数据一致。
+ *
+ * @param csv_content CSV 文件内容
+ * @param dataset 已加载课程信息的数据集
+ * @return 成功加载的时间槽记录数
+ */
 int load_course_time_csv(const std::string& csv_content, CourseDataset& dataset) {
     std::istringstream stream(csv_content);
     std::string line;
@@ -233,8 +296,7 @@ int load_course_time_csv(const std::string& csv_content, CourseDataset& dataset)
         }
     }
 
-    // 将 course_map 中的数据同步到 all_offerings（all_offerings 重建）
-    // 这样保证 all_offerings 与 course_map 中的 offering 数据一致
+    // 将 course_map 中的数据同步到 all_offerings（重建以保证数据一致）
     dataset.all_offerings.clear();
     for (auto& [id, basic] : dataset.course_map) {
         for (auto& off : basic.offerings) {
