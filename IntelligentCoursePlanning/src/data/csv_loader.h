@@ -29,11 +29,11 @@ namespace course_planner {
  * 再从 course_time.csv 补充每个教学班的上课时间槽来完成数据加载。
  */
 struct CourseDataset {
-    std::map<std::string, CourseBasic> course_map;      ///< 课程基础映射 key=course_basic_ID
-    std::vector<CourseOffering> all_offerings;           ///< 所有教学班（平铺）
+    std::map<std::string, CourseBasic> course_map;              ///< 课程基础映射 key=course_basic_ID
+    std::vector<const CourseOffering*> all_offerings;           ///< 所有教学班指针（指向 course_map 中的真实对象，无需同步）
 
     int total_offerings = 0;    ///< 教学班总数
-    int total_courses = 0;      ///< 不同的 course_basic_ID 数量
+    int total_courses = 0;      ///< 不同的 course_basic_ID 数量    < 教学班总数）（因为一门课程可能有多个教学班）
     int total_time_slots = 0;   ///< 加载的时间槽记录数
 
     /**

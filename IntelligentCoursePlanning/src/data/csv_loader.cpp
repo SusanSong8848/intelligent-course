@@ -65,10 +65,10 @@ std::vector<std::string> parse_csv_line(const std::string& line) {
     for (size_t i = 0; i < line.size(); ++i) {
         char ch = line[i];
 
-        if (in_quotes) {
+        if (in_quotes) {            //有前"的时候
             if (ch == '"') {
                 // 检查是否是转义引号 ""
-                if (i + 1 < line.size() && line[i + 1] == '"') {
+                if (i + 1 < line.size() && line[i + 1] == '"') {    //又出现两个""(curr和下一个都是)
                     current += '"';
                     ++i;  // 跳过下一个引号
                 } else {
@@ -80,8 +80,8 @@ std::vector<std::string> parse_csv_line(const std::string& line) {
         } else {
             if (ch == '"') {
                 in_quotes = true;
-            } else if (ch == ',') {
-                fields.push_back(utils::trim(current));
+            } else if (ch == ',') {     //只有此时,不在""中时才能截断
+                fields.push_back(utils::trim(current));     //去除字符串首尾空白字符（空格、制表符、回车等）
                 current.clear();
             } else {
                 // 跳过回车符（Windows换行符 \r\n 中的 \r）
@@ -118,10 +118,15 @@ std::string read_file_content(const std::string& filepath) {
 
     std::ostringstream oss;
     oss << file.rdbuf();
-    std::string content = oss.str();
+    std::string content = oss.str();        /*std::ifstream file(...) 是连接到文件的输入水管。
+                                            std::ostringstream oss 是一个内存里的字符串水槽。
+                                            oss << file.rdbuf(); 相当于把 file 水管里的所有数据（文件全部内容）倒进 oss 这个水槽里。
+                                            std::string content = oss.str(); 把水槽里的水倒进一个 std::string 容器里，得到文件的全部文本内容。*/
 
+                                            /*为什么不直接 std::string content << file.rdbuf(); ？
+                                             不能。 C++ 的 std::string 没有重载 << 来直接接收一个文件缓冲。根本原因是 类型不匹配*/
     // 去除 UTF-8 BOM
-    content = utils::remove_bom(content);
+    content = utils::remove_bom(content);       /*UTF-8 BOM 是某些软件（比如 Windows 记事本）在保存 UTF-8 文本文件时，偷偷在文件最前面塞的三个特殊字节：EF BB BF。肉眼看不见，但会影响程序解析（比如被当成数据的第一行第一列）。*/
 
     return content;
 }
@@ -147,11 +152,11 @@ std::string read_file_content(const std::string& filepath) {
 int load_course_info_csv(const std::string& csv_content, CourseDataset& dataset) {
     std::istringstream stream(csv_content);
     std::string line;
-    int line_number = 0;
-    int loaded_count = 0;
+    int line_number = 0;      //用于输出错误信息
+    int loaded_count = 0;       //真正被记载的好行数
 
     // 第1行是表头，跳过
-    if (!std::getline(stream, line)) {
+    if (!std::getline(stream, line)) {      //getline(stream, line)这里已经完成了一次读行
         std::cerr << "[警告] CSV文件为空" << std::endl;
         return 0;
     }
@@ -162,7 +167,7 @@ int load_course_info_csv(const std::string& csv_content, CourseDataset& dataset)
         line_number++;
         if (line.empty()) continue;
 
-        auto fields = parse_csv_line(line);
+        auto fields = parse_csv_line(line);     //class std::vector<std::string>
         if (fields.size() < 14) {
             std::cerr << "[警告] 第" << line_number << "行字段不足(" 
                       << fields.size() << "/14)，跳过" << std::endl;
@@ -171,7 +176,7 @@ int load_course_info_csv(const std::string& csv_content, CourseDataset& dataset)
 
         CourseOffering offering;
         offering.course_basic_ID = fields[0];
-        offering.course_sp_ID    = fields[1];
+        offering.course_sp_ID    = fields[1];       //这里CourseOffering会记录course_sp_ID
         offering.course_name     = fields[2];
         offering.department      = fields[3];
         offering.semester        = fields[4];
@@ -183,14 +188,14 @@ int load_course_info_csv(const std::string& csv_content, CourseDataset& dataset)
         offering.teacher         = fields[10];
         offering.classroom       = fields[11];
         offering.limits          = utils::safe_stoi(fields[12], 100);
-        offering.prereq_ID_raw   = fields[13];
+        offering.prereq_ID_raw   = fields[13];      //.csv每行最后都有","，这里可能只是空string
 
-        // 查找或创建 CourseBasic
-        auto& basic = dataset.course_map[offering.course_basic_ID];
+        // 查找或创建 CourseBasic   //（1）
+        auto& basic = dataset.course_map[offering.course_basic_ID];     //course_planner::CourseBasic   /*map[key] 如果 key 不存在，会默认创建一个空值插入到 map 中，然后返回这个新创建元素的引用。*/
         if (basic.course_basic_ID.empty()) {
             // 首次遇到该课程，填充基本信息
             basic.course_basic_ID = offering.course_basic_ID;
-            basic.course_name     = offering.course_name;
+            basic.course_name     = offering.course_name;       //这里CourseBasic不会单独记录course_sp_ID，都是在 CourseBasic::offerings 里（下面）
             basic.department      = offering.department;
             basic.semester        = offering.semester;
             basic.recommended_term = offering.recommended_term;
@@ -198,15 +203,22 @@ int load_course_info_csv(const std::string& csv_content, CourseDataset& dataset)
             basic.credit          = offering.credit;
 
             // 解析先修课程ID（分号分隔）
-            if (!offering.prereq_ID_raw.empty()) {
-                basic.prereq_IDs = utils::split(offering.prereq_ID_raw, ';');
+            if (!offering.prereq_ID_raw.empty()) {  //如果有先修课程
+                basic.prereq_IDs = utils::split(offering.prereq_ID_raw, ';');   //inline std::vector<std::string> course_planner::utils::split(const std::string &str, char delimiter)
             }
         }
 
-        // 将该教学班加入课程基础
-        basic.offerings.push_back(offering);
-        dataset.all_offerings.push_back(offering);
+        // 将该教学班加入课程基础   //（2）
+        basic.offerings.push_back(offering);    //offering 只在 course_map 里存一份（单一数据源）
         loaded_count++;
+    }
+
+    // 构建 all_offerings 指针数组（指向 course_map 中的真实对象，无需同步）
+    dataset.all_offerings.clear();
+    for (auto& [id, basic] : dataset.course_map) {
+        for (auto& off : basic.offerings) {
+            dataset.all_offerings.push_back(&off);  // 存指针，不复制
+        }
     }
 
     dataset.total_offerings = loaded_count;
@@ -256,7 +268,7 @@ int load_course_time_csv(const std::string& csv_content, CourseDataset& dataset)
         line_number++;
         if (line.empty()) continue;
 
-        auto fields = parse_csv_line(line);
+        auto fields = parse_csv_line(line);     //class std::vector<std::string>
         if (fields.size() < 5) {
             std::cerr << "[警告] course_time.csv 第" << line_number
                       << "行字段不足(" << fields.size() << "/5)，跳过" << std::endl;
@@ -265,14 +277,14 @@ int load_course_time_csv(const std::string& csv_content, CourseDataset& dataset)
 
         std::string basic_id = fields[0];
         std::string sp_id    = fields[1];
-        TimeSlot slot;
+        TimeSlot slot;                              //本次重点
         slot.day   = fields[2];
         slot.beg   = utils::safe_stoi(fields[3], 1);
         slot.last  = utils::safe_stoi(fields[4], 1);
 
         // 找到对应的课程基础
         auto course_it = dataset.course_map.find(basic_id);
-        if (course_it == dataset.course_map.end()) {
+        if (course_it == dataset.course_map.end()) {    //没找到该门课程
             std::cerr << "[警告] course_time.csv 第" << line_number
                       << "行: 课程基础ID " << basic_id << " 在course_info中未找到" << std::endl;
             continue;
@@ -280,15 +292,15 @@ int load_course_time_csv(const std::string& csv_content, CourseDataset& dataset)
 
         // 在 course_map 中找到对应的教学班并添加时间段
         bool found = false;
-        for (auto& offering : course_it->second.offerings) {
+        for (auto& offering : course_it->second.offerings) {    //course_planner::CourseBasic::offerings ： 该课程的所有教学班
             if (offering.course_sp_ID == sp_id) {
-                offering.time_slots.push_back(slot);
+                offering.time_slots.push_back(slot);    //（1）CourseBasic::offerings 要更新 time_slots
                 found = true;
                 break;
             }
         }
 
-        if (!found) {
+        if (!found) {       //该门课程没找到该教学班
             std::cerr << "[警告] course_time.csv 第" << line_number
                       << "行: 教学班 " << basic_id << "_" << sp_id << " 未找到" << std::endl;
         } else {
@@ -296,13 +308,8 @@ int load_course_time_csv(const std::string& csv_content, CourseDataset& dataset)
         }
     }
 
-    // 将 course_map 中的数据同步到 all_offerings（重建以保证数据一致）
-    dataset.all_offerings.clear();
-    for (auto& [id, basic] : dataset.course_map) {
-        for (auto& off : basic.offerings) {
-            dataset.all_offerings.push_back(off);
-        }
-    }
+    // all_offerings 存的是指向 course_map 中真实对象的指针，
+    // 对 course_map 中 offering 的修改（如添加 time_slots）会通过指针自动反映，无需同步。
 
     dataset.total_time_slots = loaded_count;
 
