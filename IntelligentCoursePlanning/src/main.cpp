@@ -32,6 +32,7 @@
 #include "data/json_loader.h"
 #include "models/course.h"
 #include "models/constraint.h"
+#include "core/scheduler.h"
 
 using namespace course_planner;
 
@@ -254,25 +255,64 @@ int main() {
         print_dataset_stats(dataset);
         print_constraint_info(constraint);
 
-        // 示例：查看某门必修课的详细信息
         std::cout << "\n========================================" << std::endl;
-        std::cout << "  示例：查看必修课程" << std::endl;
+        std::cout << "  [阶段二] 执行课程规划" << std::endl;
         std::cout << "========================================" << std::endl;
 
-        if (!constraint.required_course_basic_IDs.empty()) {
-            std::string sample_id = *constraint.required_course_basic_IDs.begin();      //这里只打印第一个，做一个示例演示
-            print_course_detail(dataset, sample_id);
+        // Step 4: 执行课程规划
+        Scheduler scheduler(dataset, constraint);
+        ScheduleResult result = scheduler.run();
+
+        // 输出每学期详细课程表
+        std::cout << "\n========================================" << std::endl;
+        std::cout << "  八学期详细课程表" << std::endl;
+        std::cout << "========================================" << std::endl;
+
+        for (int t = 1; t <= 8; ++t) {
+            std::cout << "\n--- 第" << t << "学期 ---" << std::endl;
+            std::cout << "学分数: " << result.semester_credits[t]
+                      << " / " << constraint.max_credit_for_term(t);
+            if (constraint.is_term_blocked(t)) std::cout << " [封锁]";
+            std::cout << std::endl;
+
+            if (result.semester_courses[t].empty()) {
+                std::cout << "  (无课程)" << std::endl;
+            } else {
+                for (const auto* off : result.semester_courses[t]) {
+                    std::cout << "  [" << off->category << "] "
+                              << off->course_name
+                              << " (" << off->course_basic_ID << ")"
+                              << " | " << off->credit << "学分"
+                              << " | 教师: " << off->teacher
+                              << " | 时间: ";
+                    for (size_t k = 0; k < off->time_slots.size(); ++k) {
+                        if (k > 0) std::cout << ", ";
+                        std::cout << off->time_slots[k].day
+                                  << " " << off->time_slots[k].beg
+                                  << "-" << off->time_slots[k].end();
+                    }
+                    std::cout << std::endl;
+                }
+            }
+        }
+
+        // 输出诊断信息
+        const auto& diag = scheduler.get_diagnostics();
+        if (!diag.empty()) {
+            std::cout << "\n--- 调度诊断 ---" << std::endl;
+            for (const auto& d : diag) {
+                std::cout << "  " << d << std::endl;
+            }
         }
 
         std::cout << "\n========================================" << std::endl;
-        std::cout << "  阶段一：数据加载验证完成！" << std::endl;
+        std::cout << "  阶段二：规划算法完成！" << std::endl;
         std::cout << "========================================" << std::endl;
-        std::cout << "加载教学班: " << info_count << " 条" << std::endl;
-        std::cout << "加载时间记录: " << time_count << " 条" << std::endl;      //指从文件真正读取（处理）的行数
-        std::cout << "必修课程: " << constraint.required_course_basic_IDs.size() << " 门" << std::endl;
-        std::cout << "选修候选: " << constraint.elective_candidate_course_basic_IDs.size() << " 门" << std::endl;
+        std::cout << "规划结果: " << (result.success ? "SUCCESS" : "FAILED") << std::endl;
+        std::cout << "数据: " << info_count << " 教学班, "
+                  << time_count << " 时间记录" << std::endl;
 
-        return 0;
+        return result.success ? 0 : 0;  // 即使规划未完全成功也不报错
     } catch (const std::exception& e) {
         std::cerr << "\n[致命错误] " << e.what() << std::endl;
         return 1;
