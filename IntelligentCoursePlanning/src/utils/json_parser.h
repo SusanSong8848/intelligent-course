@@ -4,8 +4,8 @@
  * @details 为课程规划系统提供自给自足的 JSON 解析能力，无需下载任何第三方库。
  *
  *          主要组件：
- *          - JsonValue: 动态类型的 JSON 值容器，支持 object/array/string/number/bool/null
- *          - JsonParser: 递归下降 JSON 解析器，支持嵌套结构和 Unicode 转义
+ *          - JsonValue: 动态类型的 JSON 值容器，支持 object/array/string/number/bool/null      //*重点（1）
+ *          - JsonParser: 递归下降 JSON 解析器，支持嵌套结构和 Unicode 转义                      //*重点（2）
  *          - parse_json(): 便捷解析函数
  *
  *          设计决策：
@@ -47,7 +47,19 @@ public:
 
 private:
     Type type_ = NUL;
-    std::variant<bool, int64_t, double, std::string, Array, Object> value_;
+    std::variant<bool, int64_t, double, std::string, Array, Object> value_; //键值对的值     
+/*std::variant<bool, int64_t, double, std::string, Array, Object> value_; 是啥意思？
+先看 JsonValue 类的基本思路：
+JSON 里的一个值可能是字符串、数字、布尔、数组、对象等各种类型。C++ 是强类型语言，一个变量不能一会儿存 int，一会儿存 string。
+于是我们用了一个 C++17 的新武器：std::variant。
+
+std::variant 就像一个类型安全的 union。它内部可以存储你列出的多种类型中的某一种，但一次只能存一种。我可以查询它当前是什么类型，然后取出对应类型的值。
+
+这里列出的类型：bool（布尔），int64_t（64 位整数），double（浮点数），std::string（字符串），Array（即 std::vector<JsonValue>），Object（即 std::map<std::string, JsonValue>）。基本覆盖了 JSON 所有可能的类型。
+
+int64_t 是固定宽度 64 位有符号整数，在 <cstdint> 里定义，保证在所有平台上都是 64 位，可存很大的整数而不会溢出。
+
+所以 value_ 这个成员变量可以存储任意一种 JSON 数据类型，type_ 记录当前存的是哪一种。这就是多态的一种实现方式。*/
 
 public:
     JsonValue() : type_(NUL), value_(false) {}
@@ -87,9 +99,13 @@ public:
     /** @brief 按 key 访问 object 成员（不存在时返回静态空值） */
     const JsonValue& operator[](const std::string& key) const {
         static JsonValue null_val;
-        const auto& obj = std::get<Object>(value_);
+        const auto& obj = std::get<Object>(value_);     /*std::get<Object>(value_) 的意思是：“从 value_ 中取出 Object 类型的值（Object 是 std::map<std::string, JsonValue> 的别名）”。
+                                                            如果当前 value_ 实际存储的不是 Object，程序会抛出异常。*/
+                                                        //const course_planner::utils::JsonValue::Object &obj
+                                                        //using Object = std::map<std::string, JsonValue>;  //这里相当于先找到Object，再找到对应的
+                                                        
         auto it = obj.find(key);
-        if (it != obj.end()) return it->second;
+        if (it != obj.end()) return it->second;     //pair{string, JsonValue} -> second，只有找到整个pair{key, JsonValue} 才能找到 key 匹配的JsonValue
         return null_val;
     }
 

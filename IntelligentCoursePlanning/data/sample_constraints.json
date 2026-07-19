@@ -202,7 +202,7 @@
       "学科基础课"
     ],
     "required_credit": 77.0,
-    "scope_note": "本样例的必修范围由 target_course_scope.required_course_basic_IDs 指定；required_categories_for_display 用于展示课程类别。"
+    "scope_note": "本样例的必修范围由 target_course_scope.required_course_basic_IDs 指定；required_categories_for_display 用于展示课程类别。好像该样例没有min_credit_per_semester"
   },
   "elective_min_credit": 24,
   "total_credit_rule": {

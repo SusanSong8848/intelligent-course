@@ -9,7 +9,8 @@
  * @date    2026-07
  */
 
-#pragma once
+#pragma once                    /*#pragma once 是什么意思？
+                                它写在 .h 头文件的最开头，作用是防止头文件被重复包含。*/
 
 #include <string>
 #include <vector>
@@ -18,10 +19,10 @@
 
 #include "time_slot.h"
 
-namespace course_planner {
+namespace course_planner {                      //只要在同一个命名域里面就不用加<其他文件>::了
 
 /**
- * @brief 教学班（course_info.csv 中的一行记录）
+ * @brief 教学班（course_info.csv 中的一行记录 + TimeSlotList(从 course_time.csv 加载)）
  *
  * 同一门课可能有多个教学班，每个教学班有不同的教师、教室、时间和容量。
  * course_basic_ID + course_sp_ID 组成唯一键。

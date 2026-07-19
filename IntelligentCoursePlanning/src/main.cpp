@@ -36,7 +36,7 @@
 using namespace course_planner;
 
 /**
- * @brief 获取可执行文件所在目录的绝对路径
+ * @brief 获取可执行文件所在目录的绝对路径（因为 .exe 文件位置可能和 data/ 的文件位置不一样）。这样通过get_exe_dir() 和 data_path() 不管是在 IDE 里直接运行，还是在命令行不同目录下运行，程序都能正确地找到 data 文件夹里的那些 CSV 和 JSON 文件。
  *
  * Windows 使用 GetModuleFileNameA API，
  * Linux 使用 /proc/self/exe 符号链接。
@@ -92,16 +92,16 @@ void print_dataset_stats(const CourseDataset& dataset) {
     std::cout << "\n========================================" << std::endl;
     std::cout << "  课程数据集统计" << std::endl;
     std::cout << "========================================" << std::endl;
-    std::cout << "总教学班数: " << dataset.total_offerings << std::endl;
-    std::cout << "课程基础数: " << dataset.total_courses << std::endl;
-    std::cout << "时间记录数: " << dataset.total_time_slots << std::endl;
+    std::cout << "总教学班数: " << dataset.total_offerings << std::endl;        //通过每次有效读取一行 csv_info 求得
+    std::cout << "课程基础数: " << dataset.total_courses << std::endl;          //通过 course_map.size() 求得
+    std::cout << "时间记录数: " << dataset.total_time_slots << std::endl;       //通过 csv_time 每行分割;累计求得
 
     std::map<std::string, int> semester_count;
-    std::map<std::string, int> category_count;
+    std::map<std::string, int> category_count;      //不分教学班
     std::map<int, int> term_count;
 
     for (const auto& [id, basic] : dataset.course_map) {
-        semester_count[basic.semester]++;
+        semester_count[basic.semester]++;       //map中秋季春季分别++
         category_count[basic.category]++;
         term_count[basic.recommended_term]++;
     }
@@ -237,9 +237,9 @@ int main() {
 
         // Step 1: 加载 course_info.csv
         std::cout << "\n[1/3] 加载课程信息..." << std::endl;
-        std::string info_csv = read_file_content(data_path("course_info.csv"));
+        std::string info_csv = read_file_content(data_path("course_info.csv"));     //读取整个文件内容为字符串，并自动去除 UTF-8 BOM
         CourseDataset dataset;
-        int info_count = load_course_info_csv(info_csv, dataset);
+        int info_count = load_course_info_csv(info_csv, dataset);   //加载dataset，并得到共有几门课程info_count
 
         // Step 2: 加载 course_time.csv
         std::cout << "\n[2/3] 加载开课时间..." << std::endl;
@@ -260,7 +260,7 @@ int main() {
         std::cout << "========================================" << std::endl;
 
         if (!constraint.required_course_basic_IDs.empty()) {
-            std::string sample_id = *constraint.required_course_basic_IDs.begin();
+            std::string sample_id = *constraint.required_course_basic_IDs.begin();      //这里只打印第一个，做一个示例演示
             print_course_detail(dataset, sample_id);
         }
 
@@ -268,7 +268,7 @@ int main() {
         std::cout << "  阶段一：数据加载验证完成！" << std::endl;
         std::cout << "========================================" << std::endl;
         std::cout << "加载教学班: " << info_count << " 条" << std::endl;
-        std::cout << "加载时间记录: " << time_count << " 条" << std::endl;
+        std::cout << "加载时间记录: " << time_count << " 条" << std::endl;      //指从文件真正读取（处理）的行数
         std::cout << "必修课程: " << constraint.required_course_basic_IDs.size() << " 门" << std::endl;
         std::cout << "选修候选: " << constraint.elective_candidate_course_basic_IDs.size() << " 门" << std::endl;
 

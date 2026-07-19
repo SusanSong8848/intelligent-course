@@ -58,6 +58,6 @@ struct TimeSlot {
 };
 
 /// 时间段列表，一门课可能有多个上课时段（如理论+实验）
-using TimeSlotList = std::vector<TimeSlot>;
+using TimeSlotList = std::vector<TimeSlot>;     //给一个复杂的类型起个外号（别名）
 
 }  // namespace course_planner

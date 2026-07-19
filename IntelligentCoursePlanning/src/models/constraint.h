@@ -31,7 +31,7 @@ struct TimeBlock {
     std::string day;     ///< 星期：Mon~Sun
     int beg;             ///< 开始节数
     int last;            ///< 持续节数
-    bool hard;           ///< 是否为硬约束（true=必须满足, false=尽量满足）
+    bool hard;           ///< 是否为硬约束（true=必须满足hard, false=尽量满足soft）
     std::string reason;  ///< 约束原因描述
 
     /** @brief 判断一个 TimeSlot 是否落入此时间区间内 */
@@ -66,7 +66,7 @@ struct Constraint {
     double min_total_credit = 0.0;                       ///< 八学期总学分下限
     double required_credit = 0.0;                        ///< 必修课程总学分
     double elective_min_credit = 0.0;                    ///< 选修学分下限
-    double derived_min_elective_credit_for_total = 0.0;  ///< 需要从选修池补足的总选修学分
+    double derived_min_elective_credit_for_total = 0.0;  ///< 需要从选修池补足的总选修学分      //样例中为73分，由必修 150 - 77(必修) = 73 导出。derived : 导出
 
     // ---- 必选规则 ----
     std::vector<std::string> required_categories_for_display; ///< 展示用的必修类别

@@ -8,6 +8,8 @@
  * @date    2026-07
  */
 
+ /*JSON文件本质是什么？
+ 相当于就是一个大对象({}表示一个对象)里面有很多像键值对的字段，键值对的value又可以是字符串，数组或更多键值对，嵌套下去就形成了树状结构。*/
 #include "json_loader.h"
 
 #include <iostream>
@@ -37,11 +39,17 @@ using utils::JsonValue;
  */
 Constraint parse_constraints_json(const std::string& json_content) {
     Constraint constraint;
-    JsonValue j = utils::parse_json(json_content);
+    JsonValue j = utils::parse_json(json_content);      //jion_parser 里 course_planner::utils::JsonValue{type_, value_}
+                                                        /*当type_ = OBJECT, value_ = Object时：     //（using Object = std::map<std::string, JsonValue>键值对）
+                                                        就构成了键值对嵌套树状结构（JsonValue就是随便什么类型(value_)再加上它的类型是什么(type_)的说明）*/
 
     // --- 基本信息 ---
     if (j.contains("profile_name")) {
-        constraint.profile_name = j["profile_name"].get_string();
+        constraint.profile_name = j["profile_name"].get_string();   /*course_planner::utils::JsonValue::operator[](const std::string &key) const
+                                                                        重载运算符：
+                                                                        JsonValue 不是一个 std::map，它是一个自定义类，内部虽然可能持有一个 std::map<std::string, JsonValue>（当 type_ 是 OBJECT 时），但外部不能直接用 [] 来访问它，除非我们自己写了 operator[]。
+                                                                        即要实现j["profile_name"]，需要找到"profile_name"所在的那个键值对pair才能找到它的 value
+                                                                        pair{string, JsonValue} -> second，只有找到整个pair{key, JsonValue} 才能找到 key 匹配的JsonValue*/
     }
     if (j.contains("target_department")) {
         constraint.target_department = j["target_department"].get_string();
@@ -49,7 +57,7 @@ Constraint parse_constraints_json(const std::string& json_content) {
 
     // --- 目标课程集合 ---
     if (j.contains("target_course_scope")) {
-        const auto& scope = j["target_course_scope"];
+        const auto& scope = j["target_course_scope"];       //键值对外部{ target_course_scope : 键值对内部 }，把这个键值对内部再给 scope
 
         if (scope.contains("required_course_basic_IDs")) {
             for (size_t i = 0; i < scope["required_course_basic_IDs"].size(); ++i) {
@@ -112,20 +120,20 @@ Constraint parse_constraints_json(const std::string& json_content) {
 
     // --- 必选规则展示 ---
     if (j.contains("required_rule")
-        && j["required_rule"].contains("required_categories_for_display")) {
-        const auto& cats = j["required_rule"]["required_categories_for_display"];
+        && j["required_rule"].contains("required_categories_for_display")) {        //"专业必修课","学科基础课"
+        const auto& cats = j["required_rule"]["required_categories_for_display"];       //这里 const course_planner::utils::JsonValue &cats 为{ARRAY,array}
         for (size_t i = 0; i < cats.size(); ++i) {
             constraint.required_categories_for_display.push_back(cats[i].get_string());
         }
     }
 
     // --- 时间段避让 ---
-    if (j.contains("avoid_time_blocks")) {
-        const auto& blocks = j["avoid_time_blocks"];
+    if (j.contains("avoid_time_blocks")) {              //"尽量避开周五下午"，"尽量不安排周日课程"......
+        const auto& blocks = j["avoid_time_blocks"];    //const course_planner::utils::JsonValue &blocks
         for (size_t i = 0; i < blocks.size(); ++i) {
-            const auto& block = blocks[i];
+            const auto& block = blocks[i];      //在这里const course_planner::utils::JsonValue &block 应该是 Object
             TimeBlock tb;
-            tb.day    = block.value("day", "");
+            tb.day    = block.value("day", "");     //若Object里面给了"day"就返回它的value_，如果没有就使用默认值""
             tb.beg    = block.value("beg", 1);
             tb.last   = block.value("last", 1);
             tb.hard   = block.value("hard", false);
