@@ -28,7 +28,7 @@ namespace course_planner {
 Scheduler::Scheduler(const CourseDataset& dataset, const Constraint& constraint)
     : dataset_(dataset), constraint_(constraint) {
     // 构建先修关系图
-    prereq_graph_.build(dataset_);
+    prereq_graph_.build(dataset_);  //这里够构建的是所有course的先修关系图
 }
 
 // ============================================================================
@@ -42,11 +42,11 @@ std::map<std::string, int> Scheduler::compute_prerequisite_depth() const {
         if (depth.count(id)) return depth[id];
 
         int max_depth = 0;
-        const auto& prereqs = prereq_graph_.get_prerequisites(id);
+        const auto& prereqs = prereq_graph_.get_prerequisites(id);      //std::vector<std::string>，通过reverse_adj_list_得到先修
         for (const auto& pre_id : prereqs) {
-            max_depth = std::max(max_depth, dfs(pre_id) + 1);
+            max_depth = std::max(max_depth, dfs(pre_id) + 1);       //递归
         }
-        depth[id] = max_depth;
+        depth[id] = max_depth;  //找到了每个课程的最长先修链深度（比如id是很多们课的先修，取最大的那个数字（最前面）。这样同级的不影响随便排，不同级的一定有先后关系）
         return max_depth;
     };
 
@@ -65,7 +65,7 @@ std::vector<std::string> Scheduler::get_candidates_for_term(int term) {
 
     for (const auto& id : pending_required_ids_) {
         auto it = dataset_.course_map.find(id);
-        if (it == dataset_.course_map.end()) continue;
+        if (it == dataset_.course_map.end()) continue;      //有必要：（id来自约束文件的必修课列表），这些 ID 有可能在数据集中不存在
 
         const auto& basic = it->second;
 
@@ -73,13 +73,13 @@ std::vector<std::string> Scheduler::get_candidates_for_term(int term) {
         if (constraint_.is_term_blocked(term)) continue;
 
         // 条件2：季节匹配（秋季→奇数学期，春季→偶数学期）
-        if (!term_matches_semester(term, basic.semester)) continue;
+        if (!term_matches_semester(term, basic.semester)) continue;     //别忘了检验semester
 
         // 条件3：recommended_term ≤ 当前学期（课程可以后移）
         if (basic.recommended_term > term) continue;
 
         // 条件4：先修课已全部完成
-        if (!prereq_graph_.are_prerequisites_satisfied(id, scheduled_basic_ids_)) continue;
+        if (!prereq_graph_.are_prerequisites_satisfied(id, scheduled_basic_ids_)) continue; //id没有先修课或先修课都在已安排表中
 
         candidates.push_back(id);
     }
@@ -102,13 +102,24 @@ const CourseOffering* Scheduler::select_best_offering(
 
     const auto& basic = it->second;
 
-    // 收集所有能排在此学期的教学班
+    // 必修课阶段（hard）：找到第一个不冲突的教学班就立即返回，无需遍历全部
+    if (!soft) {
+        for (const auto& off : basic.offerings) {
+            if (!off.can_schedule_in_term(term)) continue;
+            auto conflict = ConflictDetector::check_conflict_with_list(off, current_semester_courses);
+            if (!conflict.has_value()) {
+                return &off;  // 直接返回，不做多余比较
+            }
+        }
+        return nullptr;  // 所有教学班都冲突
+    }
+
+    // 选修课阶段（soft）：收集所有可行教学班，按软约束评分选最优
     std::vector<const CourseOffering*> feasible;
     for (const auto& off : basic.offerings) {
-        if (!off.can_schedule_in_term(term)) continue;
-
+        if (!off.can_schedule_in_term(term)) continue;  //秋季课程只能排在奇数学期(1/3/5/7)，春季课程只能排在偶数学期(2/4/6/8)
         // 检查是否与当前已选课程冲突
-        auto conflict = ConflictDetector::check_conflict_with_list(off, current_semester_courses);
+        auto conflict = ConflictDetector::check_conflict_with_list(off, current_semester_courses);  //没有冲突return std::nullopt; //如果冲突返回冲突对象  ConflictInfo
         if (!conflict.has_value()) {
             feasible.push_back(&off);
         }
@@ -116,29 +127,28 @@ const CourseOffering* Scheduler::select_best_offering(
 
     if (feasible.empty()) return nullptr;
 
-    // 如果使用软约束评分（选修课阶段），选得分最高的
-    if (soft && !constraint_.preferred_time_blocks.empty()) {
-        int best_score = -1;
+    // 使用软约束评分（选修课阶段），选得分最高的
+    if (!constraint_.preferred_time_blocks.empty() || !constraint_.avoid_time_blocks.empty()) {
+        int best_score = -999;
         const CourseOffering* best = nullptr;
         for (const auto* off : feasible) {
             int score = 0;
             for (const auto& ts : off->time_slots) {
-                for (const auto& pref : constraint_.preferred_time_blocks) {
+                for (const auto& pref : constraint_.preferred_time_blocks) {        //这个教学班有preferred的time_slot：+1分
                     if (pref.contains(ts)) score++;
                 }
-                for (const auto& avoid : constraint_.avoid_time_blocks) {
+                for (const auto& avoid : constraint_.avoid_time_blocks) {           //这个教学班有avoid的time_slot：+1分
                     if (avoid.contains(ts)) score--;
                 }
             }
             if (score > best_score) {
                 best_score = score;
-                best = off;
+                best = off;     //挑出最好的一个教学班
             }
         }
         return best ? best : feasible[0];
     }
-
-    // 默认返回第一个可行的（教学班序号最小的）
+// 默认返回第一个可行的（教学班序号最小的）
     return feasible[0];
 }
 
@@ -298,18 +308,18 @@ ScheduleResult Scheduler::run() {
     diagnostics_.clear();
 
     // 初始化各学期
-    for (int t = 1; t <= 8; ++t) {
+    for (int t = 1; t <= 8; ++t) {      //它们是map
         result.semester_courses[t] = {};
         result.semester_credits[t] = 0.0;
     }
 
-    // Phase 0：检查缺失先修课
+    // Phase 0：检查缺失的先修课（即有必修课的先修课不在总课程 all_nodes_ 中）  //毕竟之前从来没被检查过
     auto missing = prereq_graph_.check_missing_prerequisites(
-        constraint_.required_course_basic_IDs);
+        constraint_.required_course_basic_IDs);     //只用判断 constraint_ 里面的课先修课存不存在就好了
     if (!missing.empty()) {
         std::cerr << "[调度] ⚠ 检测到 " << missing.size() << " 门缺失的先修课程" << std::endl;
         for (const auto& mid : missing) {
-            result.unassigned_courses.push_back({
+            result.unassigned_courses.push_back({   //vector<UnassignedCourse> unassigned_courses
                 "", "缺失先修课: " + mid,
                 "该先修课程不在数据集中"
             });
@@ -317,33 +327,35 @@ ScheduleResult Scheduler::run() {
     }
 
     // Phase 1：初始化待安排列表
-    pending_required_ids_ = constraint_.required_course_basic_IDs;
+    pending_required_ids_ = constraint_.required_course_basic_IDs;  //所有 constraint_ 里的待排课
     scheduled_basic_ids_.clear();
 
-    // 计算优先级（按先修链深度降序 → 学分降序）
-    auto depth_map = compute_prerequisite_depth();
+    //------以上都在初始化 Scheduler--------
+
+    // 计算优先级（按先修链深度降序（越深越前面））    //class std::map<std::string, int> depth_map，得到每门课的层级（同级课之间不影响随便排，不同级的一定有先后关系）
+    auto depth_map = compute_prerequisite_depth();  
 
     // Phase 2：贪心按学期分配必修课
     for (int term = 1; term <= 8; ++term) {
-        if (constraint_.is_term_blocked(term)) {
-            diagnostics_.push_back("第" + std::to_string(term) + "学期被封锁（交换/实习），跳过");
+        if (constraint_.is_term_blocked(term)) {    //实习学期或交换学期
+            diagnostics_.push_back("第" + std::to_string(term) + "学期被封锁（交换/实习），跳过");  //加入vector<string>诊断日志
             continue;
         }
 
         double current_credit = 0.0;
-        double max_credit = constraint_.max_credit_for_term(term);
+        double max_credit = constraint_.max_credit_for_term(term);      //该学期的学分上限
 
         // 本轮尝试安排的最大次数（防止无限循环）
         int max_attempts = 200;
         int attempts = 0;
 
-        while (attempts < max_attempts) {
+        while (attempts < max_attempts) {//在贪心安排必修课的循环中，有可能出现一种情况：每次都选不出可安排的课程，但候选列表又不为空（比如因为学分上限，所有候选课学分都太大，一直无法安排）。如果没有 max_attempts 限制，while 循环可能永远转下去。
             attempts++;
 
-            auto candidates = get_candidates_for_term(term);
+            auto candidates = get_candidates_for_term(term);        //std::vector<std::string> candidates，有资格的候选者（未被封锁、季节匹配、课程可以后移、先修课已全部完成）
             if (candidates.empty()) break;
 
-            // 按优先级排序：深度大 → 学分高 → ID字典序
+            // 按优先级排序：先修链深度大（越前面） → 学分高 → ID字典序
             std::sort(candidates.begin(), candidates.end(),
                 [&](const std::string& a, const std::string& b) {
                     int da = depth_map.count(a) ? depth_map[a] : 0;
@@ -361,18 +373,18 @@ ScheduleResult Scheduler::run() {
             bool placed_any = false;
             for (const auto& id : candidates) {
                 auto it = dataset_.course_map.find(id);
-                if (it == dataset_.course_map.end()) continue;
-                const auto& basic = it->second;
+                if (it == dataset_.course_map.end()) continue;      //压根没这门课
+                const auto& basic = it->second;     //CourseBasic
 
                 // 学分上限检查
-                if (current_credit + basic.credit > max_credit + 0.001) {
+                if (current_credit + basic.credit > max_credit + 0.001) {       // + 0.001 ：怕 current_credit + basic.credit 在 max_credit 下面一点点（浮点数精度影响）
                     continue;  // 学分超限，留到后续学期
                 }
 
                 // 选择教学班
-                auto& semester_courses = result.semester_courses[term];
+                auto& semester_courses = result.semester_courses[term];     //本学期的课程vector<CourseOffering *>
                 const CourseOffering* selected = select_best_offering(
-                    id, term, semester_courses, false);
+                    id, term, semester_courses, false);     //bool soft（这是必修阶段：false，是hard硬约束评分（不管不希望区间和preferred区间））
 
                 if (selected != nullptr) {
                     // 成功加入
@@ -388,7 +400,7 @@ ScheduleResult Scheduler::run() {
                 // 如果所有教学班都冲突，不在此学期安排，留给后续学期
             }
 
-            if (!placed_any) break;  // 本轮无法再安排新课
+            if (!placed_any) break;  // 本轮无法再安排新课  //selected == nullptr ：没有候选课程了
         }
 
         result.semester_credits[term] = current_credit;
