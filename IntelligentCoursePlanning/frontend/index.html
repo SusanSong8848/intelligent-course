@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智能课程规划系统</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: "Microsoft YaHei", sans-serif; background:#f0f2f5; color:#333; }
+.header { background: linear-gradient(135deg, #1a73e8, #0d47a1); color:#fff; padding:16px 24px; display:flex; align-items:center; justify-content:space-between; }
+.header h1 { font-size:20px; }
+.header .nav-tabs { display:flex; gap:4px; }
+.header .nav-tab { padding:8px 16px; border-radius:6px 6px 0 0; cursor:pointer; background:rgba(255,255,255,0.15); border:none; color:#fff; font-size:14px; }
+.header .nav-tab.active { background:#fff; color:#1a73e8; font-weight:bold; }
+.container { max-width:1400px; margin:0 auto; padding:16px; }
+.tab-content { display:none; }
+.tab-content.active { display:block; }
+
+.panel { background:#fff; border-radius:8px; padding:16px; margin-bottom:16px; box-shadow:0 1px 3px rgba(0,0,0,0.1); }
+.panel h3 { margin-bottom:12px; color:#1a73e8; font-size:16px; border-bottom:2px solid #e8f0fe; padding-bottom:8px; }
+.row { display:flex; gap:16px; flex-wrap:wrap; }
+.col { flex:1; min-width:300px; }
+
+.filter-bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+.filter-bar select, .filter-bar input { padding:6px 10px; border:1px solid #ddd; border-radius:4px; font-size:13px; }
+.filter-bar button { padding:6px 16px; background:#1a73e8; color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:13px; }
+.filter-bar button:hover { background:#1557b0; }
+.filter-bar button.secondary { background:#fff; color:#1a73e8; border:1px solid #1a73e8; }
+
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th { background:#e8f0fe; padding:8px; text-align:left; font-weight:600; position:sticky; top:0; }
+td { padding:8px; border-bottom:1px solid #eee; }
+tr:hover { background:#f5f8ff; }
+
+.stats-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px; }
+.stat-card { background:#e8f0fe; border-radius:8px; padding:12px; text-align:center; }
+.stat-card .value { font-size:28px; font-weight:bold; color:#1a73e8; }
+.stat-card .label { font-size:12px; color:#666; margin-top:4px; }
+
+.semester-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; }
+.semester-card { background:#fff; border:2px solid #e0e0e0; border-radius:8px; padding:10px; min-height:120px; }
+.semester-card .term-title { font-weight:bold; font-size:14px; margin-bottom:6px; color:#333; }
+.semester-card .term-credit { font-size:12px; color:#1a73e8; margin-bottom:6px; }
+.semester-card.blocked { background:#fff3e0; border-color:#ff9800; }
+.semester-card .course-item { font-size:11px; padding:3px 0; border-bottom:1px dashed #eee; display:flex; justify-content:space-between; }
+.course-item .c-name { flex:1; }
+.course-item .c-credit { color:#1a73e8; font-weight:bold; margin-left:8px; }
+.cat-required { color:#d32f2f; }
+.cat-foundation { color:#388e3c; }
+.cat-elective { color:#f57c00; }
+
+.chart-container { width:100%; height:400px; }
+
+.summary-bar { display:flex; gap:16px; flex-wrap:wrap; margin-top:12px; }
+.summary-item { background:#e8f5e9; border-radius:6px; padding:8px 16px; }
+.summary-item.warn { background:#fff3e0; }
+.summary-item.error { background:#ffebee; }
+
+.actions { display:flex; gap:8px; margin-top:12px; }
+.actions button { padding:8px 20px; border:none; border-radius:4px; cursor:pointer; font-size:14px; }
+.btn-primary { background:#1a73e8; color:#fff; }
+.btn-success { background:#4caf50; color:#fff; }
+.btn-warning { background:#ff9800; color:#fff; }
+.btn-danger { background:#f44336; color:#fff; }
+
+@media (max-width: 900px) { .semester-grid { grid-template-columns:repeat(2, 1fr); } }
+@media (max-width: 500px) { .semester-grid { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📚 智能课程规划系统</h1>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="switchTab('dashboard')">📊 规划总览</button>
+    <button class="nav-tab" onclick="switchTab('courses')">📋 课程浏览</button>
+    <button class="nav-tab" onclick="switchTab('schedule')">📅 学期课表</button>
+    <button class="nav-tab" onclick="switchTab('graph')">🔗 依赖关系图</button>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ====== 规划总览 Tab ====== -->
+<div id="tab-dashboard" class="tab-content active">
+  <div class="panel">
+    <h3>📊 学分统计</h3>
+    <div class="stats-grid" id="stats-cards"></div>
+    <div class="actions">
+      <button class="btn-primary" onclick="loadScheduleData()">🔄 加载规划数据</button>
+      <button class="btn-primary" onclick="loadCourseData()">📥 导入课程数据</button>
+      <button class="btn-success" onclick="exportCSV()">📤 导出CSV</button>
+      <button class="btn-success" onclick="exportJSON()">📤 导出JSON</button>
+    </div>
+  </div>
+  <div class="panel">
+    <h3>每学期学分分布</h3>
+    <div class="chart-container" id="chart-credit"></div>
+  </div>
+  <div class="panel" id="panel-unassigned" style="display:none;">
+    <h3>⚠️ 未安排课程</h3>
+    <div id="unassigned-list"></div>
+  </div>
+</div>
+
+<!-- ====== 课程浏览 Tab ====== -->
+<div id="tab-courses" class="tab-content">
+  <div class="panel">
+    <h3>📋 课程筛选与浏览</h3>
+    <div class="filter-bar">
+      <select id="filter-category"><option value="">全部类别</option><option>专业必修课</option><option>学科基础课</option><option>专业选修课</option></select>
+      <select id="filter-semester"><option value="">全部季节</option><option>秋季学期</option><option>春季学期</option></select>
+      <select id="filter-term"><option value="0">全部推荐学期</option></select>
+      <select id="filter-department"><option value="">全部院系</option></select>
+      <input type="number" id="filter-credit-min" placeholder="最低学分" style="width:80px;">
+      <input type="number" id="filter-credit-max" placeholder="最高学分" style="width:80px;">
+      <input type="text" id="filter-teacher" placeholder="教师搜索" style="width:100px;">
+      <input type="text" id="filter-name" placeholder="课程名搜索" style="width:120px;">
+      <button onclick="applyFilter()">🔍 筛选</button>
+      <button class="secondary" onclick="resetFilter()">↺ 重置</button>
+      <span id="filter-count" style="margin-left:auto; color:#666; font-size:13px;"></span>
+    </div>
+    <div style="max-height:500px; overflow-y:auto;">
+      <table id="course-table">
+        <thead><tr><th>课程ID</th><th>课程名称</th><th>院系</th><th>季节</th><th>推荐学期</th><th>类别</th><th>学分</th><th>教师</th><th>教室</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ====== 学期课表 Tab ====== -->
+<div id="tab-schedule" class="tab-content">
+  <div class="panel">
+    <h3>📅 八学期详细课表</h3>
+    <div class="semester-grid" id="semester-grid"></div>
+  </div>
+</div>
+
+<!-- ====== 依赖关系图 Tab ====== -->
+<div id="tab-graph" class="tab-content">
+  <div class="panel">
+    <h3>🔗 课程先修关系图</h3>
+    <div class="chart-container" id="chart-graph"></div>
+  </div>
+</div>
+
+</div>
+
+<script>
+// ==================== 全局数据 ====================
+let courseData = [];       // 课程JSON数据
+let scheduleData = null;   // 规划结果JSON数据
+let filteredCourses = [];
+
+// ==================== Tab 切换 ====================
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+  if (name === 'dashboard') renderCreditChart();
+  if (name === 'graph') renderDependencyGraph();
+  if (name === 'schedule') renderSemesterGrid();
+}
+
+// ==================== 数据加载 ====================
+function loadScheduleData() {
+  fetch('data/schedule_result.json?' + Date.now())
+    .then(r => r.json())
+    .then(data => {
+      scheduleData = data;
+      renderDashboard();
+      renderSemesterGrid();
+      alert('✅ 规划数据加载成功！\n总学分: ' + data.summary.total_credit + '\n必修学分: ' + data.summary.required_credit + '\n选修学分: ' + data.summary.elective_credit + '\n规划结果: ' + (data.success ? '成功' : '存在问题'));
+    })
+    .catch(() => {
+      // 尝试从本地文件系统加载（用于直接打开HTML的场景）
+      document.getElementById('stats-cards').innerHTML = '<p style="color:#999;">请先运行 course_planner.exe 生成 schedule_result.json，再点击"加载规划数据"按钮。或者点击"导入课程数据"先浏览课程。</p>';
+    });
+}
+
+function loadCourseData() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = e => {
+    const file = e.target.files[0];
+    const reader = new FileReader();
+    reader.onload = ev => {
+      courseData = JSON.parse(ev.target.result);
+      filteredCourses = [...courseData];
+      populateFilters();
+      renderCourseTable();
+      renderDependencyGraph();
+      alert('✅ 课程数据加载成功！共 ' + courseData.length + ' 门课程');
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+// ==================== 渲染总览面板 ====================
+function renderDashboard() {
+  if (!scheduleData) return;
+  const s = scheduleData.summary;
+
+  let html = '';
+  html += `<div class="stat-card"><div class="value">${s.total_credit}</div><div class="label">总学分 (需≥${s.min_total_credit})</div></div>`;
+  html += `<div class="stat-card"><div class="value">${s.required_credit}</div><div class="label">必修学分</div></div>`;
+  html += `<div class="stat-card"><div class="value">${s.elective_credit}</div><div class="label">选修学分 (需≥${s.min_elective_credit})</div></div>`;
+  html += `<div class="stat-card"><div class="value">${scheduleData.success ? '✅' : '❌'}</div><div class="label">规划结果</div></div>`;
+  html += `<div class="stat-card"><div class="value">${scheduleData.unassigned.length}</div><div class="label">未安排课程</div></div>`;
+  document.getElementById('stats-cards').innerHTML = html;
+
+  // 未安排课程
+  if (scheduleData.unassigned.length > 0) {
+    document.getElementById('panel-unassigned').style.display = '';
+    let ul = '<ul>';
+    scheduleData.unassigned.forEach(uc => {
+      ul += `<li>${uc.name || uc.id}: ${uc.reason}</li>`;
+    });
+    ul += '</ul>';
+    document.getElementById('unassigned-list').innerHTML = ul;
+  }
+
+  renderCreditChart();
+}
+
+function renderCreditChart() {
+  const container = document.getElementById('chart-credit');
+  if (!scheduleData) {
+    container.innerHTML = '<p style="text-align:center;color:#999;padding:100px;">请先加载规划数据</p>';
+    return;
+  }
+  const chart = echarts.init(container);
+  const terms = [1,2,3,4,5,6,7,8];
+  const credits = terms.map(t => scheduleData.semesters.find(s => s.term === t)?.credit || 0);
+  const maxCredits = terms.map(t => scheduleData.semesters.find(s => s.term === t)?.max_credit || 40);
+
+  chart.setOption({
+    tooltip: { trigger:'axis' },
+    legend: { data:['实际学分', '学分上限'] },
+    xAxis: { data: terms.map(t => '第'+t+'学期') },
+    yAxis: { name:'学分' },
+    series: [
+      { name:'实际学分', type:'bar', data:credits, itemStyle:{color:'#1a73e8'}, label:{show:true, position:'top'} },
+      { name:'学分上限', type:'line', data:maxCredits, lineStyle:{color:'#f44336', type:'dashed'}, symbol:'none' }
+    ]
+  });
+  window.addEventListener('resize', () => chart.resize());
+}
+
+// ==================== 学期课表网格 ====================
+function renderSemesterGrid() {
+  const grid = document.getElementById('semester-grid');
+  if (!scheduleData) {
+    grid.innerHTML = '<p style="color:#999;grid-column:1/-1;">请先加载规划数据</p>';
+    return;
+  }
+
+  let html = '';
+  for (let t = 1; t <= 8; t++) {
+    const sem = scheduleData.semesters.find(s => s.term === t) || { credit:0, max_credit:40, courses:[], blocked:false };
+    html += `<div class="semester-card${sem.blocked ? ' blocked' : ''}">`;
+    html += `<div class="term-title">第${t}学期 ${sem.blocked ? '🚫封锁' : ''}</div>`;
+    html += `<div class="term-credit">学分: ${sem.credit.toFixed(1)} / ${sem.max_credit} | ${sem.courses.length} 门课</div>`;
+    sem.courses.forEach(c => {
+      let catClass = c.category === '专业必修课' ? 'cat-required' : (c.category === '学科基础课' ? 'cat-foundation' : 'cat-elective');
+      html += `<div class="course-item"><span class="c-name ${catClass}" title="${c.name} (${c.id})">${c.name}</span><span class="c-credit">${c.credit}分</span></div>`;
+    });
+    html += '</div>';
+  }
+  grid.innerHTML = html;
+}
+
+// ==================== 依赖关系图 ====================
+function renderDependencyGraph() {
+  const container = document.getElementById('chart-graph');
+  if (courseData.length === 0) {
+    container.innerHTML = '<p style="text-align:center;color:#999;padding:100px;">请先导入课程数据</p>';
+    return;
+  }
+  const chart = echarts.init(container);
+
+  // 只为有先修关系的课程建图（减少规模）
+  const relatedIds = new Set();
+  const links = [];
+  courseData.forEach(c => {
+    if (c.prereq_ids && c.prereq_ids.length > 0) {
+      c.prereq_ids.forEach(pid => {
+        if (courseData.find(x => x.id === pid)) {
+          links.push({ source: pid, target: c.id });
+          relatedIds.add(pid);
+          relatedIds.add(c.id);
+        }
+      });
+    }
+  });
+
+  const nodes = [...relatedIds].slice(0, 200).map(id => {
+    const c = courseData.find(x => x.id === id);
+    let color = '#388e3c';
+    if (c.category === '专业必修课') color = '#d32f2f';
+    else if (c.category === '专业选修课') color = '#f57c00';
+    return { id, name: c.name.substring(0, 10), symbolSize: 12, itemStyle: { color }, category: c.category };
+  });
+
+  const filteredLinks = links.filter(l => nodes.find(n => n.id === l.source) && nodes.find(n => n.id === l.target)).slice(0, 300);
+
+  chart.setOption({
+    tooltip: { formatter: p => p.data.name },
+    legend: { data:['专业必修课','学科基础课','专业选修课'], orient:'vertical', left:10 },
+    series: [{
+      type: 'graph', layout: 'force', roam: true, draggable: true,
+      force: { repulsion: 200, edgeLength: 100 },
+      data: nodes, links: filteredLinks,
+      label: { show: true, fontSize: 9, formatter: p => p.data.name },
+      categories: [{name:'专业必修课'},{name:'学科基础课'},{name:'专业选修课'}],
+      lineStyle: { color: '#ccc', curveness: 0.1 }
+    }]
+  });
+  window.addEventListener('resize', () => chart.resize());
+}
+
+// ==================== 课程筛选与列表 ====================
+function populateFilters() {
+  const depts = [...new Set(courseData.map(c => c.department))].sort();
+  const selDept = document.getElementById('filter-department');
+  selDept.innerHTML = '<option value="">全部院系</option>' + depts.map(d => `<option>${d}</option>`).join('');
+
+  const selTerm = document.getElementById('filter-term');
+  selTerm.innerHTML = '<option value="0">全部推荐学期</option>';
+  for (let t = 1; t <= 8; t++) selTerm.innerHTML += `<option value="${t}">第${t}学期</option>`;
+}
+
+function applyFilter() {
+  const cat = document.getElementById('filter-category').value;
+  const sem = document.getElementById('filter-semester').value;
+  const term = parseInt(document.getElementById('filter-term').value) || 0;
+  const dept = document.getElementById('filter-department').value;
+  const cmin = parseFloat(document.getElementById('filter-credit-min').value) || 0;
+  const cmax = parseFloat(document.getElementById('filter-credit-max').value) || 999;
+  const teacher = document.getElementById('filter-teacher').value.toLowerCase();
+  const name = document.getElementById('filter-name').value.toLowerCase();
+
+  filteredCourses = courseData.filter(c => {
+    if (cat && c.category !== cat) return false;
+    if (sem && c.semester !== sem) return false;
+    if (term > 0 && c.recommended_term !== term) return false;
+    if (dept && c.department !== dept) return false;
+    if (c.credit < cmin || c.credit > cmax) return false;
+    if (teacher) {
+      const hasTeacher = c.offerings?.some(o => o.teacher.toLowerCase().includes(teacher));
+      if (!hasTeacher) return false;
+    }
+    if (name && !c.name.toLowerCase().includes(name)) return false;
+    return true;
+  });
+  renderCourseTable();
+}
+
+function resetFilter() {
+  document.querySelectorAll('.filter-bar select, .filter-bar input').forEach(el => {
+    if (el.tagName === 'SELECT') el.selectedIndex = 0;
+    else el.value = '';
+  });
+  filteredCourses = [...courseData];
+  renderCourseTable();
+}
+
+function renderCourseTable() {
+  const tbody = document.querySelector('#course-table tbody');
+  const maxShow = 500;
+  let html = '';
+  const slice = filteredCourses.slice(0, maxShow);
+  slice.forEach(c => {
+    const teachers = c.offerings?.map(o => o.teacher).join(', ') || '';
+    const rooms = c.offerings?.map(o => o.classroom).join(', ') || '';
+    html += `<tr>
+      <td>${c.id}</td><td>${c.name}</td><td>${c.department}</td>
+      <td>${c.semester}</td><td>${c.recommended_term}</td>
+      <td>${c.category}</td><td>${c.credit}</td>
+      <td>${teachers}</td><td>${rooms}</td>
+    </tr>`;
+  });
+  tbody.innerHTML = html;
+  document.getElementById('filter-count').textContent =
+    `显示 ${slice.length} / ${filteredCourses.length} 门课程` + (filteredCourses.length > maxShow ? ` (仅前${maxShow})` : '');
+}
+
+// ==================== 导出功能 ====================
+function exportCSV() {
+  if (courseData.length === 0) { alert('请先导入课程数据'); return; }
+  let csv = '课程ID,课程名称,院系,季节,推荐学期,类别,学分,教师,教室\n';
+  filteredCourses.slice(0, 1000).forEach(c => {
+    csv += `${c.id},"${c.name}","${c.department}","${c.semester}",${c.recommended_term},"${c.category}",${c.credit},"${(c.offerings||[]).map(o=>o.teacher).join(';')}","${(c.offerings||[]).map(o=>o.classroom).join(';')}"\n`;
+  });
+  downloadFile('course_export.csv', csv);
+}
+
+function exportJSON() {
+  const data = { courses: filteredCourses.slice(0, 1000), schedule: scheduleData };
+  downloadFile('course_export.json', JSON.stringify(data, null, 2));
+}
+
+function downloadFile(name, content) {
+  const blob = new Blob(['\uFEFF' + content], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+}
+
+// ==================== 初始化 ====================
+document.addEventListener('DOMContentLoaded', () => {
+  loadScheduleData();
+});
+
+// 从 data/ 目录 schema 加载
+</script>
+</body>
+</html>
