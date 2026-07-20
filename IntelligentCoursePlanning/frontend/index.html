@@ -544,7 +544,28 @@ function downloadFile(name, content) {
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
 }
 
-document.addEventListener('DOMContentLoaded', () => { loadScheduleData(); });
+// 自动加载课程数据（尝试从 data/course_dataset.json）
+function autoLoadCourseData() {
+  fetch('data/course_dataset.json?' + Date.now())
+    .then(r => r.json())
+    .then(data => {
+      courseData = data;
+      filteredCourses = [...courseData];
+      populateFilters();
+      renderCourseTable();
+      refreshManualCourseList();
+      renderDependencyGraph();
+      console.log('✅ 课程数据自动加载成功！共 ' + courseData.length + ' 门课程');
+    })
+    .catch(() => {
+      console.log('课程数据未找到，可在"规划总览"点击"导入课程数据"手动加载');
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadScheduleData();
+  autoLoadCourseData();
+});
 </script>
 </body>
 </html>
