@@ -51,3 +51,6 @@ FetchContent/
 # 操作系统
 Thumbs.db
 Desktop.ini
+
+# API 密钥（不可提交到 Git）
+frontend/apikey.json
