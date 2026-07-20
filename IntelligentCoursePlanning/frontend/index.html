@@ -8,9 +8,9 @@
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family: "Microsoft YaHei", sans-serif; background:#f0f2f5; color:#333; }
-.header { background: linear-gradient(135deg, #1a73e8, #0d47a1); color:#fff; padding:16px 24px; display:flex; align-items:center; justify-content:space-between; }
+.header { background: linear-gradient(135deg, #1a73e8, #0d47a1); color:#fff; padding:16px 24px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; }
 .header h1 { font-size:20px; }
-.header .nav-tabs { display:flex; gap:4px; }
+.header .nav-tabs { display:flex; gap:4px; flex-wrap:wrap; }
 .header .nav-tab { padding:8px 16px; border-radius:6px 6px 0 0; cursor:pointer; background:rgba(255,255,255,0.15); border:none; color:#fff; font-size:14px; }
 .header .nav-tab.active { background:#fff; color:#1a73e8; font-weight:bold; }
 .container { max-width:1400px; margin:0 auto; padding:16px; }
@@ -19,8 +19,6 @@ body { font-family: "Microsoft YaHei", sans-serif; background:#f0f2f5; color:#33
 
 .panel { background:#fff; border-radius:8px; padding:16px; margin-bottom:16px; box-shadow:0 1px 3px rgba(0,0,0,0.1); }
 .panel h3 { margin-bottom:12px; color:#1a73e8; font-size:16px; border-bottom:2px solid #e8f0fe; padding-bottom:8px; }
-.row { display:flex; gap:16px; flex-wrap:wrap; }
-.col { flex:1; min-width:300px; }
 
 .filter-bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
 .filter-bar select, .filter-bar input { padding:6px 10px; border:1px solid #ddd; border-radius:4px; font-size:13px; }
@@ -39,30 +37,40 @@ tr:hover { background:#f5f8ff; }
 .stat-card .label { font-size:12px; color:#666; margin-top:4px; }
 
 .semester-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; }
-.semester-card { background:#fff; border:2px solid #e0e0e0; border-radius:8px; padding:10px; min-height:120px; }
+.semester-card { background:#fff; border:2px solid #e0e0e0; border-radius:8px; padding:10px; min-height:120px; position:relative; }
 .semester-card .term-title { font-weight:bold; font-size:14px; margin-bottom:6px; color:#333; }
 .semester-card .term-credit { font-size:12px; color:#1a73e8; margin-bottom:6px; }
 .semester-card.blocked { background:#fff3e0; border-color:#ff9800; }
-.semester-card .course-item { font-size:11px; padding:3px 0; border-bottom:1px dashed #eee; display:flex; justify-content:space-between; }
+.semester-card .course-item { font-size:11px; padding:3px 4px; border-bottom:1px dashed #eee; display:flex; justify-content:space-between; align-items:center; cursor:pointer; border-radius:3px; }
+.semester-card .course-item:hover { background:#e8f0fe; }
 .course-item .c-name { flex:1; }
-.course-item .c-credit { color:#1a73e8; font-weight:bold; margin-left:8px; }
+.course-item .c-credit { color:#1a73e8; font-weight:bold; margin-left:6px; font-size:10px; }
+.course-item .c-remove { color:#f44336; cursor:pointer; font-size:12px; margin-left:4px; display:none; }
+.course-item:hover .c-remove { display:inline; }
 .cat-required { color:#d32f2f; }
 .cat-foundation { color:#388e3c; }
 .cat-elective { color:#f57c00; }
 
 .chart-container { width:100%; height:400px; }
 
-.summary-bar { display:flex; gap:16px; flex-wrap:wrap; margin-top:12px; }
-.summary-item { background:#e8f5e9; border-radius:6px; padding:8px 16px; }
-.summary-item.warn { background:#fff3e0; }
-.summary-item.error { background:#ffebee; }
-
-.actions { display:flex; gap:8px; margin-top:12px; }
+.actions { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
 .actions button { padding:8px 20px; border:none; border-radius:4px; cursor:pointer; font-size:14px; }
 .btn-primary { background:#1a73e8; color:#fff; }
 .btn-success { background:#4caf50; color:#fff; }
 .btn-warning { background:#ff9800; color:#fff; }
 .btn-danger { background:#f44336; color:#fff; }
+.btn-secondary { background:#6c757d; color:#fff; }
+
+.pref-bar { padding:8px 12px; background:#f5f5f5; border-radius:4px; margin-top:8px; font-size:12px; }
+.pref-bar .good { color:#4caf50; }
+.pref-bar .warn { color:#ff9800; }
+
+.modal-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center; }
+.modal-overlay.show { display:flex; }
+.modal { background:#fff; border-radius:8px; padding:24px; max-width:600px; max-height:80vh; overflow-y:auto; }
+.modal h3 { margin-bottom:12px; }
+.modal .close { float:right; cursor:pointer; font-size:20px; color:#999; }
+.modal li { margin:4px 0; font-size:13px; }
 
 @media (max-width: 900px) { .semester-grid { grid-template-columns:repeat(2, 1fr); } }
 @media (max-width: 500px) { .semester-grid { grid-template-columns:1fr; } }
@@ -75,8 +83,8 @@ tr:hover { background:#f5f8ff; }
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="switchTab('dashboard')">📊 规划总览</button>
     <button class="nav-tab" onclick="switchTab('courses')">📋 课程浏览</button>
-    <button class="nav-tab" onclick="switchTab('schedule')">📅 学期课表</button>
-    <button class="nav-tab" onclick="switchTab('graph')">🔗 依赖关系图</button>
+    <button class="nav-tab" onclick="switchTab('schedule')">📅 互动课表</button>
+    <button class="nav-tab" onclick="switchTab('graph')">🔗 依赖图</button>
   </div>
 </div>
 
@@ -97,6 +105,10 @@ tr:hover { background:#f5f8ff; }
   <div class="panel">
     <h3>每学期学分分布</h3>
     <div class="chart-container" id="chart-credit"></div>
+  </div>
+  <div class="panel">
+    <h3>🎯 个性化时间偏好满足度</h3>
+    <div id="preference-summary"></div>
   </div>
   <div class="panel" id="panel-unassigned" style="display:none;">
     <h3>⚠️ 未安排课程</h3>
@@ -123,18 +135,50 @@ tr:hover { background:#f5f8ff; }
     </div>
     <div style="max-height:500px; overflow-y:auto;">
       <table id="course-table">
-        <thead><tr><th>课程ID</th><th>课程名称</th><th>院系</th><th>季节</th><th>推荐学期</th><th>类别</th><th>学分</th><th>教师</th><th>教室</th></tr></thead>
+        <thead><tr><th>课程ID</th><th>课程名称</th><th>院系</th><th>季节</th><th>推荐学期</th><th>类别</th><th>学分</th><th>教师</th><th>操作</th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
   </div>
 </div>
 
-<!-- ====== 学期课表 Tab ====== -->
+<!-- ====== 互动课表 Tab (拓展：手动选课/取消/保存/冲突查看) ====== -->
 <div id="tab-schedule" class="tab-content">
   <div class="panel">
-    <h3>📅 八学期详细课表</h3>
+    <h3>📅 八学期互动课表 <span style="font-size:12px;font-weight:normal;color:#999;">（点击课程可删除，右侧可手动选课）</span></h3>
+    <div class="actions">
+      <button class="btn-primary" onclick="loadScheduleData()">🔄 重新加载规划</button>
+      <button class="btn-success" onclick="savePlan()">💾 保存当前方案</button>
+      <button class="btn-warning" onclick="loadSavedPlan()">📂 加载已保存方案</button>
+      <button class="btn-secondary" onclick="clearPlan()">🗑️ 清空方案</button>
+      <button class="btn-danger" onclick="showConflicts()">⚠️ 查看冲突</button>
+    </div>
     <div class="semester-grid" id="semester-grid"></div>
+  </div>
+  <div class="panel">
+    <h3>➕ 手动添加课程到指定学期</h3>
+    <div class="row">
+      <div class="col">
+        <select id="manual-course" style="width:100%;padding:6px;"></select>
+      </div>
+      <div class="col">
+        <select id="manual-term" style="width:100%;padding:6px;">
+          <option value="1">第1学期 (秋季)</option>
+          <option value="2">第2学期 (春季)</option>
+          <option value="3">第3学期 (秋季)</option>
+          <option value="4">第4学期 (春季)</option>
+          <option value="5">第5学期 (秋季)</option>
+          <option value="6">第6学期 (春季)</option>
+          <option value="7">第7学期 (秋季)</option>
+          <option value="8">第8学期 (春季)</option>
+        </select>
+      </div>
+      <div class="col">
+        <button class="btn-primary" onclick="manualAddCourse()">➕ 添加</button>
+        <button class="btn-warning" onclick="recheckSchedule()">🔍 重新检查</button>
+      </div>
+    </div>
+    <div id="manual-msg" style="margin-top:8px;font-size:13px;"></div>
   </div>
 </div>
 
@@ -148,11 +192,24 @@ tr:hover { background:#f5f8ff; }
 
 </div>
 
+<!-- 冲突弹窗 -->
+<div class="modal-overlay" id="conflict-modal">
+  <div class="modal">
+    <span class="close" onclick="closeModal()">✕</span>
+    <h3>⚠️ 冲突详情</h3>
+    <div id="conflict-content"></div>
+    <div class="actions" style="margin-top:16px;">
+      <button class="btn-primary" onclick="closeModal()">关闭</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ==================== 全局数据 ====================
-let courseData = [];       // 课程JSON数据
-let scheduleData = null;   // 规划结果JSON数据
+let courseData = [];
+let scheduleData = null;
 let filteredCourses = [];
+let manualSchedule = null; // 用户手动修改的课表副本
 
 // ==================== Tab 切换 ====================
 function switchTab(name) {
@@ -162,7 +219,7 @@ function switchTab(name) {
   event.target.classList.add('active');
   if (name === 'dashboard') renderCreditChart();
   if (name === 'graph') renderDependencyGraph();
-  if (name === 'schedule') renderSemesterGrid();
+  if (name === 'schedule') { refreshManualCourseList(); renderInteractiveSchedule(); }
 }
 
 // ==================== 数据加载 ====================
@@ -171,20 +228,19 @@ function loadScheduleData() {
     .then(r => r.json())
     .then(data => {
       scheduleData = data;
+      manualSchedule = JSON.parse(JSON.stringify(data.semesters));
       renderDashboard();
-      renderSemesterGrid();
-      alert('✅ 规划数据加载成功！\n总学分: ' + data.summary.total_credit + '\n必修学分: ' + data.summary.required_credit + '\n选修学分: ' + data.summary.elective_credit + '\n规划结果: ' + (data.success ? '成功' : '存在问题'));
+      renderInteractiveSchedule();
+      alert('✅ 规划数据加载成功！总学分: ' + data.summary.total_credit + '，选修学分: ' + data.summary.elective_credit);
     })
     .catch(() => {
-      // 尝试从本地文件系统加载（用于直接打开HTML的场景）
-      document.getElementById('stats-cards').innerHTML = '<p style="color:#999;">请先运行 course_planner.exe 生成 schedule_result.json，再点击"加载规划数据"按钮。或者点击"导入课程数据"先浏览课程。</p>';
+      document.getElementById('stats-cards').innerHTML = '<p style="color:#999;">请先运行 course_planner.exe 生成 schedule_result.json</p>';
     });
 }
 
 function loadCourseData() {
   const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.json';
+  input.type = 'file'; input.accept = '.json';
   input.onchange = e => {
     const file = e.target.files[0];
     const reader = new FileReader();
@@ -194,6 +250,7 @@ function loadCourseData() {
       populateFilters();
       renderCourseTable();
       renderDependencyGraph();
+      refreshManualCourseList();
       alert('✅ 课程数据加载成功！共 ' + courseData.length + ' 门课程');
     };
     reader.readAsText(file);
@@ -201,28 +258,27 @@ function loadCourseData() {
   input.click();
 }
 
-// ==================== 渲染总览面板 ====================
+// ==================== 渲染总览 ====================
 function renderDashboard() {
   if (!scheduleData) return;
   const s = scheduleData.summary;
-
   let html = '';
   html += `<div class="stat-card"><div class="value">${s.total_credit}</div><div class="label">总学分 (需≥${s.min_total_credit})</div></div>`;
-  html += `<div class="stat-card"><div class="value">${s.required_credit}</div><div class="label">必修学分</div></div>`;
   html += `<div class="stat-card"><div class="value">${s.elective_credit}</div><div class="label">选修学分 (需≥${s.min_elective_credit})</div></div>`;
-  html += `<div class="stat-card"><div class="value">${scheduleData.success ? '✅' : '❌'}</div><div class="label">规划结果</div></div>`;
+  html += `<div class="stat-card"><div class="value">${scheduleData.success?'✅':'❌'}</div><div class="label">规划结果</div></div>`;
   html += `<div class="stat-card"><div class="value">${scheduleData.unassigned.length}</div><div class="label">未安排课程</div></div>`;
   document.getElementById('stats-cards').innerHTML = html;
 
-  // 未安排课程
   if (scheduleData.unassigned.length > 0) {
     document.getElementById('panel-unassigned').style.display = '';
-    let ul = '<ul>';
-    scheduleData.unassigned.forEach(uc => {
-      ul += `<li>${uc.name || uc.id}: ${uc.reason}</li>`;
-    });
-    ul += '</ul>';
-    document.getElementById('unassigned-list').innerHTML = ul;
+    document.getElementById('unassigned-list').innerHTML = '<ul>' + scheduleData.unassigned.map(uc => `<li>${uc.name||uc.id}: ${uc.reason}</li>`).join('') + '</ul>';
+  }
+
+  // 偏好报告
+  if (scheduleData.preference_reports) {
+    document.getElementById('preference-summary').innerHTML = scheduleData.preference_reports
+      .filter(r => r.total_preferred + r.total_avoid > 0)
+      .map(r => `<div class="pref-bar">第${r.term}学期: ${r.detail}</div>`).join('');
   }
 
   renderCreditChart();
@@ -230,20 +286,14 @@ function renderDashboard() {
 
 function renderCreditChart() {
   const container = document.getElementById('chart-credit');
-  if (!scheduleData) {
-    container.innerHTML = '<p style="text-align:center;color:#999;padding:100px;">请先加载规划数据</p>';
-    return;
-  }
+  if (!scheduleData) { container.innerHTML = '<p style="text-align:center;color:#999;padding:100px;">请先加载规划数据</p>'; return; }
   const chart = echarts.init(container);
   const terms = [1,2,3,4,5,6,7,8];
-  const credits = terms.map(t => scheduleData.semesters.find(s => s.term === t)?.credit || 0);
-  const maxCredits = terms.map(t => scheduleData.semesters.find(s => s.term === t)?.max_credit || 40);
-
+  const credits = terms.map(t => (manualSchedule || scheduleData.semesters).find(s => s.term===t)?.credit || 0);
+  const maxCredits = terms.map(t => (manualSchedule || scheduleData.semesters).find(s => s.term===t)?.max_credit || 40);
   chart.setOption({
-    tooltip: { trigger:'axis' },
-    legend: { data:['实际学分', '学分上限'] },
-    xAxis: { data: terms.map(t => '第'+t+'学期') },
-    yAxis: { name:'学分' },
+    tooltip: { trigger:'axis' }, legend: { data:['实际学分','学分上限'] },
+    xAxis: { data: terms.map(t => '第'+t+'学期') }, yAxis: { name:'学分' },
     series: [
       { name:'实际学分', type:'bar', data:credits, itemStyle:{color:'#1a73e8'}, label:{show:true, position:'top'} },
       { name:'学分上限', type:'line', data:maxCredits, lineStyle:{color:'#f44336', type:'dashed'}, symbol:'none' }
@@ -252,74 +302,172 @@ function renderCreditChart() {
   window.addEventListener('resize', () => chart.resize());
 }
 
-// ==================== 学期课表网格 ====================
-function renderSemesterGrid() {
+// ==================== 互动课表 (拓展功能核心) ====================
+function renderInteractiveSchedule() {
   const grid = document.getElementById('semester-grid');
-  if (!scheduleData) {
-    grid.innerHTML = '<p style="color:#999;grid-column:1/-1;">请先加载规划数据</p>';
-    return;
-  }
+  const sems = manualSchedule || (scheduleData ? scheduleData.semesters : []);
+  if (!sems.length) { grid.innerHTML = '<p style="color:#999;grid-column:1/-1;">请先加载规划数据</p>'; return; }
 
   let html = '';
   for (let t = 1; t <= 8; t++) {
-    const sem = scheduleData.semesters.find(s => s.term === t) || { credit:0, max_credit:40, courses:[], blocked:false };
-    html += `<div class="semester-card${sem.blocked ? ' blocked' : ''}">`;
-    html += `<div class="term-title">第${t}学期 ${sem.blocked ? '🚫封锁' : ''}</div>`;
-    html += `<div class="term-credit">学分: ${sem.credit.toFixed(1)} / ${sem.max_credit} | ${sem.courses.length} 门课</div>`;
-    sem.courses.forEach(c => {
+    const sem = sems.find(s => s.term === t) || { credit:0, max_credit:40, courses:[], blocked:false };
+    html += `<div class="semester-card${sem.blocked?' blocked':''}">`;
+    html += `<div class="term-title">第${t}学期 ${sem.blocked?'🚫':''} <span style="font-size:10px;color:#666;">${sem.courses.length}门</span></div>`;
+    html += `<div class="term-credit">学分: ${sem.credit.toFixed(1)} / ${sem.max_credit}</div>`;
+    sem.courses.forEach((c, idx) => {
       let catClass = c.category === '专业必修课' ? 'cat-required' : (c.category === '学科基础课' ? 'cat-foundation' : 'cat-elective');
-      html += `<div class="course-item"><span class="c-name ${catClass}" title="${c.name} (${c.id})">${c.name}</span><span class="c-credit">${c.credit}分</span></div>`;
+      html += `<div class="course-item" title="${c.name} (${c.id})&#10;教师: ${c.teacher} ${c.classroom}">
+        <span class="c-name ${catClass}">${c.name}</span>
+        <span class="c-credit">${c.credit}分</span>
+        <span class="c-remove" onclick="removeCourse(${t}, ${idx})" title="移除课程">✕</span>
+      </div>`;
     });
     html += '</div>';
   }
   grid.innerHTML = html;
+  recalcCredits();
+}
+
+function removeCourse(term, idx) {
+  if (!manualSchedule) return;
+  const sem = manualSchedule.find(s => s.term === term);
+  if (!sem) return;
+  const removed = sem.courses.splice(idx, 1)[0];
+  sem.credit -= removed.credit;
+  renderInteractiveSchedule();
+  renderCreditChart();
+  document.getElementById('manual-msg').innerHTML = `<span style="color:#f44336;">已从第${term}学期移除：${removed.name}</span>`;
+}
+
+function manualAddCourse() {
+  const courseId = document.getElementById('manual-course').value;
+  const term = parseInt(document.getElementById('manual-term').value);
+  if (!courseId || !manualSchedule) { document.getElementById('manual-msg').innerHTML = '<span style="color:#f44336;">请先加载规划数据和选择课程</span>'; return; }
+
+  const course = courseData.find(c => c.id === courseId);
+  if (!course) return;
+
+  // 检查季节匹配
+  const termSeason = term % 2 === 1 ? '秋季学期' : '春季学期';
+  if (course.semester !== termSeason) {
+    document.getElementById('manual-msg').innerHTML = `<span style="color:#f44336;">${course.name} 是${course.semester}课程，不能安排在第${term}学期</span>`;
+    return;
+  }
+
+  // 检查是否已安排
+  const already = manualSchedule.some(s => s.courses.some(c => c.id === courseId));
+  if (already) { document.getElementById('manual-msg').innerHTML = `<span style="color:#ff9800;">${course.name} 已在课表中</span>`; return; }
+
+  // 添加
+  const sem = manualSchedule.find(s => s.term === term);
+  const newCourse = { id: course.id, sp_id: course.offerings[0].sp_id, name: course.name, category: course.category, credit: course.credit, teacher: course.offerings[0].teacher, classroom: course.offerings[0].classroom, timeslots: course.offerings[0].timeslots };
+  sem.courses.push(newCourse);
+  sem.credit += course.credit;
+  renderInteractiveSchedule();
+  renderCreditChart();
+  document.getElementById('manual-msg').innerHTML = `<span style="color:#4caf50;">✅ 已将 ${course.name} 添加到第${term}学期</span>`;
+}
+
+function recalcCredits() {
+  if (!manualSchedule) return;
+  manualSchedule.forEach(sem => { sem.credit = sem.courses.reduce((sum, c) => sum + c.credit, 0); });
+}
+
+function savePlan() {
+  if (!manualSchedule) { alert('无方案可保存'); return; }
+  localStorage.setItem('saved_schedule', JSON.stringify(manualSchedule));
+  alert('✅ 方案已保存到本地浏览器！');
+}
+
+function loadSavedPlan() {
+  const saved = localStorage.getItem('saved_schedule');
+  if (!saved) { alert('没有已保存的方案'); return; }
+  manualSchedule = JSON.parse(saved);
+  renderInteractiveSchedule();
+  renderCreditChart();
+  alert('✅ 已加载本地保存的方案！');
+}
+
+function clearPlan() {
+  if (!manualSchedule) return;
+  if (!confirm('确定清空当前方案吗？此操作不可撤销。')) return;
+  manualSchedule.forEach(sem => { sem.courses = []; sem.credit = 0; });
+  renderInteractiveSchedule();
+  renderCreditChart();
+}
+
+function recheckSchedule() {
+  if (!manualSchedule) return;
+  let conflictCount = 0;
+  manualSchedule.forEach(sem => {
+    for (let i = 0; i < sem.courses.length; i++) {
+      for (let j = i+1; j < sem.courses.length; j++) {
+        const a = sem.courses[i], b = sem.courses[j];
+        if (a.timeslots && b.timeslots) {
+          for (const sa of a.timeslots) {
+            for (const sb of b.timeslots) {
+              if (sa.day === sb.day && !(sa.beg+sa.last-1 < sb.beg || sb.beg+sb.last-1 < sa.beg)) {
+                conflictCount++;
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+  if (conflictCount > 0) {
+    document.getElementById('manual-msg').innerHTML = `<span style="color:#f44336;">⚠️ 检测到 ${conflictCount} 对时间冲突！点击"查看冲突"了解详情</span>`;
+  } else {
+    document.getElementById('manual-msg').innerHTML = `<span style="color:#4caf50;">✅ 当前方案无时间冲突</span>`;
+  }
+}
+
+function showConflicts() {
+  if (!manualSchedule) return;
+  let conflicts = [];
+  manualSchedule.forEach(sem => {
+    for (let i = 0; i < sem.courses.length; i++) {
+      for (let j = i+1; j < sem.courses.length; j++) {
+        const a = sem.courses[i], b = sem.courses[j];
+        if (a.timeslots && b.timeslots) {
+          for (const sa of a.timeslots) {
+            for (const sb of b.timeslots) {
+              if (sa.day === sb.day && !(sa.beg+sa.last-1 < sb.beg || sb.beg+sb.last-1 < sa.beg)) {
+                conflicts.push({ term: sem.term, a: a.name, b: b.name, detail: `${a.name} ${sa.day}${sa.beg}-${sa.beg+sa.last-1} 与 ${b.name} ${sb.day}${sb.beg}-${sb.beg+sb.last-1}` });
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+  const content = document.getElementById('conflict-content');
+  if (conflicts.length === 0) {
+    content.innerHTML = '<p style="color:#4caf50;">✅ 当前方案无时间冲突</p>';
+  } else {
+    content.innerHTML = '<ul>' + conflicts.map(c => `<li>第${c.term}学期: ${c.detail}</li>`).join('') + '</ul>';
+  }
+  document.getElementById('conflict-modal').classList.add('show');
+}
+
+function closeModal() { document.getElementById('conflict-modal').classList.remove('show'); }
+
+function refreshManualCourseList() {
+  const sel = document.getElementById('manual-course');
+  sel.innerHTML = '<option value="">-- 选择课程 --</option>' + courseData.map(c => `<option value="${c.id}">${c.name} (${c.credit}学分, ${c.semester})</option>`).join('');
 }
 
 // ==================== 依赖关系图 ====================
 function renderDependencyGraph() {
   const container = document.getElementById('chart-graph');
-  if (courseData.length === 0) {
-    container.innerHTML = '<p style="text-align:center;color:#999;padding:100px;">请先导入课程数据</p>';
-    return;
-  }
+  if (!courseData.length) { container.innerHTML = '<p style="text-align:center;color:#999;padding:100px;">请先导入课程数据</p>'; return; }
   const chart = echarts.init(container);
-
-  // 只为有先修关系的课程建图（减少规模）
-  const relatedIds = new Set();
-  const links = [];
-  courseData.forEach(c => {
-    if (c.prereq_ids && c.prereq_ids.length > 0) {
-      c.prereq_ids.forEach(pid => {
-        if (courseData.find(x => x.id === pid)) {
-          links.push({ source: pid, target: c.id });
-          relatedIds.add(pid);
-          relatedIds.add(c.id);
-        }
-      });
-    }
-  });
-
-  const nodes = [...relatedIds].slice(0, 200).map(id => {
-    const c = courseData.find(x => x.id === id);
-    let color = '#388e3c';
-    if (c.category === '专业必修课') color = '#d32f2f';
-    else if (c.category === '专业选修课') color = '#f57c00';
-    return { id, name: c.name.substring(0, 10), symbolSize: 12, itemStyle: { color }, category: c.category };
-  });
-
-  const filteredLinks = links.filter(l => nodes.find(n => n.id === l.source) && nodes.find(n => n.id === l.target)).slice(0, 300);
-
+  const relatedIds = new Set(); const links = [];
+  courseData.forEach(c => { if (c.prereq_ids) c.prereq_ids.forEach(pid => { if (courseData.find(x=>x.id===pid)) { links.push({source:pid,target:c.id}); relatedIds.add(pid); relatedIds.add(c.id); } }); });
+  const nodes = [...relatedIds].slice(0,200).map(id => { const c = courseData.find(x=>x.id===id); let color='#388e3c'; if (c.category==='专业必修课') color='#d32f2f'; else if (c.category==='专业选修课') color='#f57c00'; return {id,name:c.name.substring(0,10),symbolSize:12,itemStyle:{color},category:c.category}; });
   chart.setOption({
-    tooltip: { formatter: p => p.data.name },
-    legend: { data:['专业必修课','学科基础课','专业选修课'], orient:'vertical', left:10 },
-    series: [{
-      type: 'graph', layout: 'force', roam: true, draggable: true,
-      force: { repulsion: 200, edgeLength: 100 },
-      data: nodes, links: filteredLinks,
-      label: { show: true, fontSize: 9, formatter: p => p.data.name },
-      categories: [{name:'专业必修课'},{name:'学科基础课'},{name:'专业选修课'}],
-      lineStyle: { color: '#ccc', curveness: 0.1 }
-    }]
+    tooltip:{formatter:p=>p.data.name}, legend:{data:['专业必修课','学科基础课','专业选修课'],orient:'vertical',left:10},
+    series:[{type:'graph',layout:'force',roam:true,draggable:true,force:{repulsion:200,edgeLength:100},data:nodes,links:links.filter(l=>nodes.find(n=>n.id===l.source)&&nodes.find(n=>n.id===l.target)).slice(0,300),label:{show:true,fontSize:9,formatter:p=>p.data.name},categories:[{name:'专业必修课'},{name:'学科基础课'},{name:'专业选修课'}],lineStyle:{color:'#ccc',curveness:0.1}}]
   });
   window.addEventListener('resize', () => chart.resize());
 }
@@ -327,98 +475,67 @@ function renderDependencyGraph() {
 // ==================== 课程筛选与列表 ====================
 function populateFilters() {
   const depts = [...new Set(courseData.map(c => c.department))].sort();
-  const selDept = document.getElementById('filter-department');
-  selDept.innerHTML = '<option value="">全部院系</option>' + depts.map(d => `<option>${d}</option>`).join('');
-
+  document.getElementById('filter-department').innerHTML = '<option value="">全部院系</option>' + depts.map(d => `<option>${d}</option>`).join('');
   const selTerm = document.getElementById('filter-term');
   selTerm.innerHTML = '<option value="0">全部推荐学期</option>';
-  for (let t = 1; t <= 8; t++) selTerm.innerHTML += `<option value="${t}">第${t}学期</option>`;
+  for (let t=1; t<=8; t++) selTerm.innerHTML += `<option value="${t}">第${t}学期</option>`;
 }
 
 function applyFilter() {
-  const cat = document.getElementById('filter-category').value;
-  const sem = document.getElementById('filter-semester').value;
-  const term = parseInt(document.getElementById('filter-term').value) || 0;
-  const dept = document.getElementById('filter-department').value;
-  const cmin = parseFloat(document.getElementById('filter-credit-min').value) || 0;
-  const cmax = parseFloat(document.getElementById('filter-credit-max').value) || 999;
-  const teacher = document.getElementById('filter-teacher').value.toLowerCase();
-  const name = document.getElementById('filter-name').value.toLowerCase();
-
+  const cat=document.getElementById('filter-category').value, sem=document.getElementById('filter-semester').value;
+  const term=parseInt(document.getElementById('filter-term').value)||0, dept=document.getElementById('filter-department').value;
+  const cmin=parseFloat(document.getElementById('filter-credit-min').value)||0, cmax=parseFloat(document.getElementById('filter-credit-max').value)||999;
+  const teacher=document.getElementById('filter-teacher').value.toLowerCase(), name=document.getElementById('filter-name').value.toLowerCase();
   filteredCourses = courseData.filter(c => {
-    if (cat && c.category !== cat) return false;
-    if (sem && c.semester !== sem) return false;
-    if (term > 0 && c.recommended_term !== term) return false;
-    if (dept && c.department !== dept) return false;
-    if (c.credit < cmin || c.credit > cmax) return false;
-    if (teacher) {
-      const hasTeacher = c.offerings?.some(o => o.teacher.toLowerCase().includes(teacher));
-      if (!hasTeacher) return false;
-    }
-    if (name && !c.name.toLowerCase().includes(name)) return false;
+    if (cat&&c.category!==cat) return false; if (sem&&c.semester!==sem) return false;
+    if (term>0&&c.recommended_term!==term) return false; if (dept&&c.department!==dept) return false;
+    if (c.credit<cmin||c.credit>cmax) return false;
+    if (teacher&&!c.offerings?.some(o=>o.teacher.toLowerCase().includes(teacher))) return false;
+    if (name&&!c.name.toLowerCase().includes(name)) return false;
     return true;
   });
   renderCourseTable();
 }
 
 function resetFilter() {
-  document.querySelectorAll('.filter-bar select, .filter-bar input').forEach(el => {
-    if (el.tagName === 'SELECT') el.selectedIndex = 0;
-    else el.value = '';
-  });
-  filteredCourses = [...courseData];
-  renderCourseTable();
+  document.querySelectorAll('#tab-courses .filter-bar select, #tab-courses .filter-bar input').forEach(el => { if (el.tagName==='SELECT') el.selectedIndex=0; else el.value=''; });
+  filteredCourses=[...courseData]; renderCourseTable();
 }
 
 function renderCourseTable() {
   const tbody = document.querySelector('#course-table tbody');
-  const maxShow = 500;
-  let html = '';
-  const slice = filteredCourses.slice(0, maxShow);
-  slice.forEach(c => {
-    const teachers = c.offerings?.map(o => o.teacher).join(', ') || '';
-    const rooms = c.offerings?.map(o => o.classroom).join(', ') || '';
-    html += `<tr>
-      <td>${c.id}</td><td>${c.name}</td><td>${c.department}</td>
-      <td>${c.semester}</td><td>${c.recommended_term}</td>
-      <td>${c.category}</td><td>${c.credit}</td>
-      <td>${teachers}</td><td>${rooms}</td>
-    </tr>`;
-  });
-  tbody.innerHTML = html;
-  document.getElementById('filter-count').textContent =
-    `显示 ${slice.length} / ${filteredCourses.length} 门课程` + (filteredCourses.length > maxShow ? ` (仅前${maxShow})` : '');
+  const slice = filteredCourses.slice(0,500);
+  tbody.innerHTML = slice.map(c => `<tr>
+    <td>${c.id}</td><td>${c.name}</td><td>${c.department}</td><td>${c.semester}</td><td>${c.recommended_term}</td>
+    <td>${c.category}</td><td>${c.credit}</td><td>${(c.offerings||[]).map(o=>o.teacher).join(', ')}</td>
+    <td><button onclick="quickAdd('${c.id}')" style="font-size:11px;padding:2px 6px;">加</button></td>
+  </tr>`).join('');
+  document.getElementById('filter-count').textContent = `显示 ${slice.length}/${filteredCourses.length}`;
 }
 
-// ==================== 导出功能 ====================
+function quickAdd(courseId) {
+  document.getElementById('manual-course').value = courseId;
+  switchTab('schedule');
+}
+
+// ==================== 导出 ====================
 function exportCSV() {
-  if (courseData.length === 0) { alert('请先导入课程数据'); return; }
-  let csv = '课程ID,课程名称,院系,季节,推荐学期,类别,学分,教师,教室\n';
-  filteredCourses.slice(0, 1000).forEach(c => {
-    csv += `${c.id},"${c.name}","${c.department}","${c.semester}",${c.recommended_term},"${c.category}",${c.credit},"${(c.offerings||[]).map(o=>o.teacher).join(';')}","${(c.offerings||[]).map(o=>o.classroom).join(';')}"\n`;
-  });
+  if (!courseData.length) { alert('请先导入课程数据'); return; }
+  let csv='课程ID,课程名称,院系,季节,推荐学期,类别,学分,教师,教室\n';
+  filteredCourses.slice(0,1000).forEach(c => { csv+=`${c.id},"${c.name}","${c.department}","${c.semester}",${c.recommended_term},"${c.category}",${c.credit},"${(c.offerings||[]).map(o=>o.teacher).join(';')}","${(c.offerings||[]).map(o=>o.classroom).join(';')}"\n`; });
   downloadFile('course_export.csv', csv);
 }
 
 function exportJSON() {
-  const data = { courses: filteredCourses.slice(0, 1000), schedule: scheduleData };
-  downloadFile('course_export.json', JSON.stringify(data, null, 2));
+  downloadFile('course_export.json', JSON.stringify({ courses: filteredCourses.slice(0,1000), schedule: scheduleData }, null, 2));
 }
 
 function downloadFile(name, content) {
-  const blob = new Blob(['\uFEFF' + content], { type: 'text/plain;charset=utf-8' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = name;
-  a.click();
+  const blob = new Blob(['\uFEFF' + content], { type:'text/plain;charset=utf-8' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
 }
 
-// ==================== 初始化 ====================
-document.addEventListener('DOMContentLoaded', () => {
-  loadScheduleData();
-});
-
-// 从 data/ 目录 schema 加载
+document.addEventListener('DOMContentLoaded', () => { loadScheduleData(); });
 </script>
 </body>
 </html>
