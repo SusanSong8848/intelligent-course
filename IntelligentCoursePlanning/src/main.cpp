@@ -310,9 +310,9 @@ int main() {
 
         // Step 5: 导出 JSON 文件供前端使用
         std::cout << "\n[4/4] 导出规划结果..." << std::endl;
-        std::string exe_dir = get_exe_dir();
+        std::string exe_dir = get_exe_dir();    //获取可执行文件所在目录的绝对路径（main.cpp最上面）
         std::string result_path = exe_dir + "/data/schedule_result.json";
-        if (export_result_json(result, constraint, dataset, result_path)) {
+        if (export_result_json(result, constraint, dataset, result_path)) {     //将规划结果导出为 JSON 文件
             std::cout << "  ✅ 规划结果已导出: " << result_path << std::endl;
         }
         std::string dataset_path = exe_dir + "/data/course_dataset.json";

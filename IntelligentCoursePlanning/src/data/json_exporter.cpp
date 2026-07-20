@@ -16,7 +16,7 @@
 
 namespace course_planner {
 
-/** @brief 将字符串中的双引号和反斜杠转义 */
+/** @brief 将字符串中的双引号和反斜杠转义（为了正常写到.jion文件里？） */
 static std::string json_escape(const std::string& s) {
     std::string result;
     for (char ch : s) {
@@ -29,6 +29,15 @@ static std::string json_escape(const std::string& s) {
     }
     return result;
 }
+/*json_escape 的作用是确保字符串在 JSON 中是合法、安全的。
+因为 JSON 标准规定：
+
+字符串必须用双引号括起来。
+如果字符串内部有双引号，必须写成 \"
+如果内部有反斜杠，必须写成 \\
+换行符必须写成 \n，回车写成 \r，制表符写成 \t
+（实际上文件里是有这些反斜杠的，只是用文本编辑器打开时，转义序列会显示成原字符。）
+*/
 
 bool export_result_json(const ScheduleResult& result,
                         const Constraint& constraint,
@@ -92,7 +101,7 @@ bool export_result_json(const ScheduleResult& result,
     out << "  \"unassigned\": [\n";
     for (size_t i = 0; i < result.unassigned_courses.size(); ++i) {
         const auto& uc = result.unassigned_courses[i];
-        out << "    {\"id\": \"" << json_escape(uc.course_basic_ID)
+        out << "    {\"id\": \"" << json_escape(uc.course_basic_ID)     //将字符串中的双引号和反斜杠转义
             << "\", \"name\": \"" << json_escape(uc.course_name)
             << "\", \"reason\": \"" << json_escape(uc.reason) << "\"}";
         if (i < result.unassigned_courses.size() - 1) out << ",";
