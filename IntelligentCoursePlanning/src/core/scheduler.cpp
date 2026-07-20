@@ -173,7 +173,7 @@ void Scheduler::fill_electives(ScheduleResult& result) {
             double max_credit = constraint_.max_credit_for_term(term);
 
             // 学分上限检查
-            if (current_credit + basic.credit > max_credit) continue;
+            if (current_credit + basic.credit > max_credit + 0.001) continue;       // + 0.001 ：怕 current_credit + basic.credit 在 max_credit 下面一点点（浮点数精度影响）
 
             // 选择最佳教学班（使用软约束评分）
             auto& semester_courses = result.semester_courses[term];     //每学期的选课列表 map<int, vector<const CourseOffering *>> semester_courses
