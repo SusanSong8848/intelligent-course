@@ -81,6 +81,7 @@ tr:hover { background:#f5f8ff; }
 <div class="header">
   <h1>📚 智能课程规划系统</h1>
   <div class="nav-tabs">
+    <a href="ai-advisor.html" style="padding:8px 16px; color:#fff; text-decoration:none; font-size:14px; opacity:0.85;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">🤖 AI顾问</a>
     <button class="nav-tab active" onclick="switchTab('dashboard')">📊 规划总览</button>
     <button class="nav-tab" onclick="switchTab('courses')">📋 课程浏览</button>
     <button class="nav-tab" onclick="switchTab('schedule')">📅 互动课表</button>
@@ -234,7 +235,15 @@ function loadScheduleData() {
       alert('✅ 规划数据加载成功！总学分: ' + data.summary.total_credit + '，选修学分: ' + data.summary.elective_credit);
     })
     .catch(() => {
-      document.getElementById('stats-cards').innerHTML = '<p style="color:#999;">请先运行 course_planner.exe 生成 schedule_result.json</p>';
+      document.getElementById('stats-cards').innerHTML =
+        '<div style="padding:20px;color:#f44336;line-height:1.8;">'
+        + '⚠️ <b>无法加载规划数据</b><br><br>'
+        + '可能的原因：<br>'
+        + '1. 请用 <b>HTTP 服务器</b> 打开此页面（直接在文件管理器中双击 HTML 文件会因 file:// 协议限制而无法加载数据）<br>'
+        + '&nbsp;&nbsp;&nbsp;👉 在终端中运行: <b>cd frontend && python server.py</b>，然后访问 <b>http://localhost:8000</b><br>'
+        + '2. 确保已运行 <b>course_planner.exe</b> 生成 data/schedule_result.json<br>'
+        + '&nbsp;&nbsp;&nbsp;👉 该文件应位于 build/Release/data/ 或 frontend/data/ 目录下'
+        + '</div>';
     });
 }
 

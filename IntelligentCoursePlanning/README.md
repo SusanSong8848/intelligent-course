@@ -16,10 +16,12 @@ cmake -B build -S .
 cmake --build build --config Release
 
 # 2. 运行规划（自动测试 + JSON 导出）
-build\Release\course_planner.exe 
+build\Release\course_planner.exe
 
-# 3. 打开前端页面
-# 用浏览器打开 frontend/index.html
+# 3. 启动前端服务器
+cd frontend
+python server.py
+# 在浏览器中访问 http://localhost:8000
 # 点击"加载规划数据"即可查看八学期课表
 ```
 
@@ -111,6 +113,12 @@ Phase 5: 生成可解释的规划摘要
 | ⚠️ 查看冲突 | 点击"⚠️ 查看冲突" → 弹出详细冲突列表（含具体时间段） |
 | 🔍 重新检查 | 点击"🔍 重新检查" → 即时检测当前方案的时间冲突数量 |
 
+**使用前准备**（重要）：
+1. 先运行 `course_planner.exe`，确保生成了 `data/schedule_result.json`
+2. 打开 `frontend/index.html`，在 "📊 规划总览" Tab 点击 **"🔄 加载规划数据"**（自动加载规划结果）
+3. 如需手动添加课程，再点击 **"📥 导入课程数据"**，选择 `build/Release/data/course_dataset.json`
+4. 加载完成后切换到 "📅 互动课表" Tab 即可使用
+
 **手动添加课程须知**：系统会自动检查季节匹配（秋季课程只能加在 1/3/5/7 学期，春季课程只能加在 2/4/6/8 学期）和重复添加，不符合条件的会给出提示。
 
 ### 拓展 2：个性化时间偏好安排
@@ -165,7 +173,3 @@ Phase 5: 生成可解释的规划摘要
 - [数据说明](data/README.md)
 - [AI 选课建议 SKILL 定义](docs/AI_SKILL.md)
 - [实验报告](docs/实验报告.md)
-
-## License
-
-本项目为课程作业项目，仅供学习参考。
