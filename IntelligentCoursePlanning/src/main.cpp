@@ -298,6 +298,17 @@ int main() {
             }
         }
 
+        // 输出个性化时间偏好满足度报告
+        std::cout << "\n========================================" << std::endl;
+        std::cout << "  个性化时间偏好满足度（拓展功能）" << std::endl;
+        std::cout << "========================================" << std::endl;
+        for (int t = 1; t <= 8; ++t) {
+            auto it = result.semester_preferences.find(t);
+            if (it != result.semester_preferences.end() && !result.semester_courses[t].empty()) {
+                std::cout << "第" << t << "学期: " << it->second.detail << std::endl;
+            }
+        }
+
         // 输出诊断信息
         const auto& diag = scheduler.get_diagnostics();     //这里好像只有term封锁信息
                                                             /*其他诊断信息（如缺失先修课、未安排课程）是直接输出到 cerr 或记录在 result.unassigned_courses 和 result.conflicts 中，没有统一存入 diagnostics_。*/

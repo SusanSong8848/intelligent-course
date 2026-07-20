@@ -127,7 +127,27 @@ bool export_result_json(const ScheduleResult& result,
             << ", \"last\": " << tb.last << "}";
         if (i < constraint.preferred_time_blocks.size() - 1) out << ",";
     }
-    out << "]\n  }\n";
+    out << "]\n  },\n";
+
+    // 个性化偏好报告
+    out << "  \"preference_reports\": [\n";
+    for (int t = 1; t <= 8; ++t) {
+        auto it = result.semester_preferences.find(t);
+        out << "    {\"term\": " << t << ", ";
+        if (it != result.semester_preferences.end()) {
+            const auto& r = it->second;
+            out << "\"satisfied_preferred\": " << r.satisfied_preferred << ", ";
+            out << "\"total_preferred\": " << r.total_preferred << ", ";
+            out << "\"satisfied_avoid\": " << r.satisfied_avoid << ", ";
+            out << "\"total_avoid\": " << r.total_avoid << ", ";
+            out << "\"satisfaction_rate\": " << r.satisfaction_rate << ", ";
+            out << "\"detail\": \"" << json_escape(r.detail) << "\"";
+        }
+        out << "}";
+        if (t < 8) out << ",";
+        out << "\n";
+    }
+    out << "  ]\n";
 
     out << "}\n";
     return true;

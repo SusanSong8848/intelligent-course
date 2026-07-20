@@ -253,6 +253,48 @@ void Scheduler::validate_result(ScheduleResult& result) {
 }
 
 // ============================================================================
+// 分析个性化时间偏好满足度（拓展功能）
+// ============================================================================
+
+void Scheduler::analyze_preferences(ScheduleResult& result) {
+    for (int t = 1; t <= 8; ++t) {
+        auto& report = result.semester_preferences[t];  //PreferenceReport &report
+        auto it = result.semester_courses.find(t);
+        if (it == result.semester_courses.end()) continue;
+
+        for (const auto* off : it->second) {
+            for (const auto& ts : off->time_slots) {
+                // 检查偏好时段
+                for (const auto& pref : constraint_.preferred_time_blocks) {
+                    report.total_preferred++;       //这是在初始化total_preferred，satisfied_avoid这些数据
+                    if (pref.contains(ts)) {
+                        report.satisfied_preferred++;
+                    }
+                }
+                // 检查避让时段
+                for (const auto& avoid : constraint_.avoid_time_blocks) {
+                    report.total_avoid++;
+                    if (!avoid.contains(ts)) {
+                        report.satisfied_avoid++;  // 没落入避让区间 = 成功避让
+                    }
+                }
+            }
+        }
+
+        int total = report.total_preferred + report.total_avoid;
+        int satisfied = report.satisfied_preferred + report.satisfied_avoid;
+        report.satisfaction_rate = (total > 0) ? static_cast<double>(satisfied) / total : 1.0;
+
+        std::ostringstream det;
+        det << "偏好满足 " << report.satisfied_preferred << "/" << report.total_preferred
+            << "，成功避让 " << report.satisfied_avoid << "/" << report.total_avoid
+            << "，综合满足率 " << std::fixed << std::setprecision(0)
+            << (report.satisfaction_rate * 100) << "%";
+        report.detail = det.str();
+    }
+}
+
+// ============================================================================
 // 生成摘要
 // ============================================================================
 
@@ -427,6 +469,9 @@ ScheduleResult Scheduler::run() {
 
     // Phase 4：验证
     validate_result(result);
+
+    // Phase 4.5：分析个性化时间偏好满足度（拓展功能）
+    analyze_preferences(result);
 
     // Phase 5：摘要
     generate_summary(result);   //汇总信息字符串 string summary

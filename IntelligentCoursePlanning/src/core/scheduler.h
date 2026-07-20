@@ -61,6 +61,17 @@ struct ScheduleResult {
 
     /// 汇总信息字符串
     std::string summary;
+
+    /// 个性化时间安排：偏好满足度
+    struct PreferenceReport {
+        int total_preferred = 0;          ///< 偏好时段总数
+        int total_avoid = 0;              ///< 避让时段总数
+        int satisfied_preferred = 0;      ///< 满足的偏好时段数
+        int satisfied_avoid = 0;          ///< 成功避让的时段数
+        double satisfaction_rate = 0.0;   ///< 满足率 (0~1)
+        std::string detail;               ///< 文字说明
+    };
+    std::map<int, PreferenceReport> semester_preferences; ///< 每学期的偏好报告
 };
 
 /**
@@ -151,6 +162,12 @@ private:
      * @param result 规划结果
      */
     void generate_summary(ScheduleResult& result);
+
+    /**
+     * @brief 分析个性化时间安排满足度（拓展功能）
+     * @param result 规划结果（会被修改，填充 semester_preferences）
+     */
+    void analyze_preferences(ScheduleResult& result);
 };
 
 }  // namespace course_planner
