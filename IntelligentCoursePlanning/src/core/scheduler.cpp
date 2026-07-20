@@ -76,7 +76,7 @@ std::vector<std::string> Scheduler::get_candidates_for_term(int term) {
         if (!term_matches_semester(term, basic.semester)) continue;     //别忘了检验semester
 
         // 条件3：recommended_term ≤ 当前学期（课程可以后移）
-        if (basic.recommended_term > term) continue;
+        if (basic.recommended_term > term) continue;    //这是课程数据中的字段 recommended_term 的语义：“建议/最早修读学期”，课程可以后移（太前面怕学生学不会）
 
         // 条件4：先修课已全部完成
         if (!prereq_graph_.are_prerequisites_satisfied(id, scheduled_basic_ids_)) continue; //id没有先修课或先修课都在已安排表中
@@ -157,12 +157,12 @@ const CourseOffering* Scheduler::select_best_offering(
 // ============================================================================
 
 void Scheduler::fill_electives(ScheduleResult& result) {
-    std::set<std::string> elective_pool = constraint_.elective_candidate_course_basic_IDs;
+    std::set<std::string> elective_pool = constraint_.elective_candidate_course_basic_IDs;  //所有选修课id
 
     for (int term = 1; term <= 8; ++term) {
-        if (constraint_.is_term_blocked(term)) continue;
+        if (constraint_.is_term_blocked(term)) continue;    //该term是否因交换/实习不可排课
 
-        double current_credit = result.semester_credits[term];
+        double current_credit = result.semester_credits[term];  //该term现在已有学分
         double max_credit = constraint_.max_credit_for_term(term);
 
         for (const auto& elec_id : elective_pool) {
@@ -173,7 +173,7 @@ void Scheduler::fill_electives(ScheduleResult& result) {
             if (!prereq_graph_.are_prerequisites_satisfied(elec_id, scheduled_basic_ids_)) continue;
 
             auto it = dataset_.course_map.find(elec_id);
-            if (it == dataset_.course_map.end()) continue;
+            if (it == dataset_.course_map.end()) continue;      //判断在不在总课程里面
             const auto& basic = it->second;
 
             // 季节匹配
@@ -183,8 +183,8 @@ void Scheduler::fill_electives(ScheduleResult& result) {
             if (current_credit + basic.credit > max_credit) continue;
 
             // 选择最佳教学班（使用软约束评分）
-            auto& semester_courses = result.semester_courses[term];
-            const CourseOffering* best = select_best_offering(elec_id, term, semester_courses, true);
+            auto& semester_courses = result.semester_courses[term]; //每学期的选课列表 map<int, vector<const CourseOffering *>> semester_courses
+            const CourseOffering* best = select_best_offering(elec_id, term, semester_courses, true);   //soft加入：喜欢/不希望 积分
             if (best == nullptr) continue;
 
             // 加入
@@ -196,8 +196,8 @@ void Scheduler::fill_electives(ScheduleResult& result) {
             result.elective_credit_earned += best->credit;
 
             // 选修学分已足？
-            if (result.elective_credit_earned >= constraint_.derived_min_elective_credit_for_total
-                && result.total_credit >= constraint_.min_total_credit) {
+            if (result.elective_credit_earned >= constraint_.derived_min_elective_credit_for_total  
+                && result.total_credit >= constraint_.min_total_credit) {   //现选修学分 > 导出学分：eg.73
                 return;  // 选修学分和总学分都够了
             }
         }
@@ -332,8 +332,14 @@ ScheduleResult Scheduler::run() {
 
     //------以上都在初始化 Scheduler--------
 
-    // 计算优先级（按先修链深度降序（越深越前面））    //class std::map<std::string, int> depth_map，得到每门课的层级（同级课之间不影响随便排，不同级的一定有先后关系）
+    // 计算优先级（按先修链深度降序（越深越前面））    //class std::map<std::string, int> depth_map，得到每门必修课的层级（同级课之间不影响随便排，不同级的一定有先后关系）
     auto depth_map = compute_prerequisite_depth();  
+/*必修课要深度排序，选修课不用：
+必修课按深度排序是为了优先排瓶颈课，而选修课的约束不同：
+必修课必须全部排完，所以需要拓扑和深度来保证可行性。
+选修课的目标只是凑满学分，没有必须全部排完的硬性要求，所以不强制拓扑排序，只需满足先修已满足即可。简单遍历并按学期顺序贪心填满学分，效率更高且足够。
+如果选修课数量极大，也可以考虑排序，但当前实现无需复杂化。*/
+
 
     // Phase 2：贪心按学期分配必修课
     for (int term = 1; term <= 8; ++term) {
@@ -409,7 +415,7 @@ ScheduleResult Scheduler::run() {
     // Phase 2.5：处理仍未安排的必修课
     for (const auto& id : pending_required_ids_) {
         auto it = dataset_.course_map.find(id);
-        std::string name = (it != dataset_.course_map.end()) ? it->second.course_name : id;
+        std::string name = (it != dataset_.course_map.end()) ? it->second.course_name : id;     //找到这门unsigned课的信息，并加入result.unassigned_courses vector<UnassignedCourse>
         result.unassigned_courses.push_back({
             id, name,
             "所有教学班时间冲突或学分上限不足，无法安排"
@@ -423,9 +429,9 @@ ScheduleResult Scheduler::run() {
     validate_result(result);
 
     // Phase 5：摘要
-    generate_summary(result);
+    generate_summary(result);   //汇总信息字符串 string summary
 
-    prereq_graph_.print_stats();
+    prereq_graph_.print_stats();    //打印图的基本统计信息
     std::cout << result.summary << std::endl;
 
     return result;

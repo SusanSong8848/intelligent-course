@@ -32,7 +32,7 @@ struct TimeSlot {
     int end() const { return beg + last - 1; }
 
     /**
-     * @brief 判断两个时间段是否在节次上重叠
+     * @brief 判断两个时间段是否在节次上重叠（在conflict_detector里会被用来判断两门课的course_time（time_slot）会不会重复）
      * @param other 另一个时间段
      * @return 如果day相同且节次区间有交集则返回true
      * @note 此方法只检查 day+节次，不检查周次重叠。

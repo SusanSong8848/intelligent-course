@@ -73,7 +73,7 @@ public:
      * @param len2 课2持续周数
      * @return 重叠返回true
      */
-    static bool weeks_overlap(int beg1, int len1, int beg2, int len2);
+    static bool weeks_overlap(const int& beg1, const int& len1, const int& beg2, const int& len2);
 };
 
 };  // namespace course_planner

@@ -260,7 +260,7 @@ int main() {
         std::cout << "========================================" << std::endl;
 
         // Step 4: 执行课程规划
-        Scheduler scheduler(dataset, constraint);
+        Scheduler scheduler(dataset, constraint);   //这里只是多建立了一个 prereq_graph_，Scheduler剩下的成员要在 .run()里面被实现
         ScheduleResult result = scheduler.run();
 
         // 输出每学期详细课程表
@@ -269,6 +269,7 @@ int main() {
         std::cout << "========================================" << std::endl;
 
         for (int t = 1; t <= 8; ++t) {
+            //都是 term -> 课程 -> 教学班
             std::cout << "\n--- 第" << t << "学期 ---" << std::endl;
             std::cout << "学分数: " << result.semester_credits[t]
                       << " / " << constraint.max_credit_for_term(t);
@@ -297,7 +298,8 @@ int main() {
         }
 
         // 输出诊断信息
-        const auto& diag = scheduler.get_diagnostics();
+        const auto& diag = scheduler.get_diagnostics();     //这里好像只有term封锁信息
+                                                            /*其他诊断信息（如缺失先修课、未安排课程）是直接输出到 cerr 或记录在 result.unassigned_courses 和 result.conflicts 中，没有统一存入 diagnostics_。*/
         if (!diag.empty()) {
             std::cout << "\n--- 调度诊断 ---" << std::endl;
             for (const auto& d : diag) {

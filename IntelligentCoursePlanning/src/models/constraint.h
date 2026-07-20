@@ -86,8 +86,8 @@ struct Constraint {
      */
     double max_credit_for_term(int term) const {
         auto it = max_credit_per_semester.find(term);
-        if (it != max_credit_per_semester.end()) return it->second;
-        return 40.0;
+        if (it != max_credit_per_semester.end()) return it->second; //有就返回
+        return 40.0;    //默认？
     }
 
     /**

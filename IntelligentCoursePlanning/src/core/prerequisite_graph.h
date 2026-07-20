@@ -28,6 +28,29 @@ namespace course_planner {
  * 以 Kahn 算法进行拓扑排序，同时检测环路和缺失先修课。
  */
 class PrerequisiteGraph {
+private:
+    /// 邻接表：pre_id → [后继课程ID列表]
+    std::map<std::string, std::vector<std::string>> adj_list_;
+
+    /// 逆邻接表：course_id → [先修课程ID列表]（用于快速查先修）
+    std::map<std::string, std::vector<std::string>> reverse_adj_list_;
+
+    /// 图中所有节点的集合
+    std::set<std::string> all_nodes_;
+
+    /// 环路检测结果（调试用，mutable 允许在 const 方法中写入）
+    mutable std::set<std::string> cycle_nodes_;         /*mutable 的作用是允许在 const 成员函数中修改该变量。has_cycle() 是 const 方法，
+                                                        但内部需要缓存环节点以便外部查询。cycle_nodes_ 被标记为 mutable，就可以在 const 方法里写入，而方法的逻辑常量性不变。*/
+
+    int edge_count_ = 0;
+
+    /**
+     * @brief Kahn 拓扑排序（内部实现），可控制是否抛出异常
+     * @param throw_on_cycle 是否在检测到环时抛出异常
+     * @return 排序结果（如果有环且 throw_on_cycle=false，返回部分结果）
+     */
+    std::vector<std::string> kahn_sort(bool throw_on_cycle) const;
+    
 public:
     /** @brief 构建空的先修关系图 */
     PrerequisiteGraph() = default;
@@ -91,27 +114,6 @@ public:
     /** @brief 打印图的基本统计信息 */
     void print_stats() const;
 
-private:
-    /// 邻接表：pre_id → [后继课程ID列表]
-    std::map<std::string, std::vector<std::string>> adj_list_;
-
-    /// 逆邻接表：course_id → [先修课程ID列表]（用于快速查先修）
-    std::map<std::string, std::vector<std::string>> reverse_adj_list_;
-
-    /// 图中所有节点的集合
-    std::set<std::string> all_nodes_;
-
-    /// 环路检测结果（调试用，mutable 允许在 const 方法中写入）
-    mutable std::set<std::string> cycle_nodes_;
-
-    int edge_count_ = 0;
-
-    /**
-     * @brief Kahn 拓扑排序（内部实现），可控制是否抛出异常
-     * @param throw_on_cycle 是否在检测到环时抛出异常
-     * @return 排序结果（如果有环且 throw_on_cycle=false，返回部分结果）
-     */
-    std::vector<std::string> kahn_sort(bool throw_on_cycle) const;
 };
 
 }  // namespace course_planner

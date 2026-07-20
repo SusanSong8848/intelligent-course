@@ -96,15 +96,15 @@ public:
 
 private:
     const CourseDataset& dataset_;
-    const Constraint& constraint_;
-    PrerequisiteGraph prereq_graph_;
+    const Constraint& constraint_;  //约束条件课程信息集合
+    PrerequisiteGraph prereq_graph_;    //PrerequisiteGraph prereq_graph_;先修关系图
     ConflictDetector conflict_detector_;
     std::vector<std::string> diagnostics_;  ///< 诊断日志
 
     /// 已安排课程的集合（用于追踪先修满足情况）
     std::set<std::string> scheduled_basic_ids_;
 
-    /// 剩余待安排的必修课ID集合
+    /// 剩余待安排的必修课ID集合。pending : 待处理的
     std::set<std::string> pending_required_ids_;
 
     /**

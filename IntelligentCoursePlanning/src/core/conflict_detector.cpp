@@ -14,7 +14,7 @@
 
 namespace course_planner {
 
-bool ConflictDetector::weeks_overlap(int beg1, int len1, int beg2, int len2) {
+bool ConflictDetector::weeks_overlap(const int& beg1, const int& len1, const int& beg2, const int& len2) {
     int end1 = beg1 + len1 - 1;
     int end2 = beg2 + len2 - 1;
     return !(end1 < beg2 || end2 < beg1);
@@ -22,7 +22,7 @@ bool ConflictDetector::weeks_overlap(int beg1, int len1, int beg2, int len2) {
 
 bool ConflictDetector::has_conflict(const CourseOffering& a, const CourseOffering& b) {
     // 周次不重叠 → 绝对不冲突
-    if (!weeks_overlap(a.beg_week, a.last_week, b.beg_week, b.last_week)) {
+    if (!weeks_overlap(a.beg_week, a.last_week, b.beg_week, b.last_week)) {     //重叠返回true
         return false;
     }
 
@@ -45,7 +45,7 @@ std::vector<ConflictInfo> ConflictDetector::check_semester_conflicts(
 
     for (int i = 0; i < n; ++i) {
         for (int j = i + 1; j < n; ++j) {
-            if (has_conflict(*semester_courses[i], *semester_courses[j])) {
+            if (has_conflict(*semester_courses[i], *semester_courses[j])) {     //再检查一遍本学期课表任意两门课（单个教学班）之间是否有冲突
                 ConflictInfo ci;
                 ci.course1_id   = semester_courses[i]->course_basic_ID;
                 ci.course2_id   = semester_courses[j]->course_basic_ID;
@@ -56,7 +56,7 @@ std::vector<ConflictInfo> ConflictDetector::check_semester_conflicts(
                 std::ostringstream oss;
                 oss << "[" << ci.course1_name << "(" << semester_courses[i]->course_sp_ID << ")";
                 bool first = true;
-                for (const auto& ts : semester_courses[i]->time_slots) {
+                for (const auto& ts : semester_courses[i]->time_slots) {        //所有time_slot都要写出来
                     if (!first) oss << ",";
                     oss << " " << ts.day << " " << ts.beg << "-" << ts.end();
                     first = false;
@@ -68,7 +68,7 @@ std::vector<ConflictInfo> ConflictDetector::check_semester_conflicts(
                     oss << " " << ts.day << " " << ts.beg << "-" << ts.end();
                     first = false;
                 }
-                oss << "]";
+                oss << "]";       //以上生成详细信息流
                 ci.detail = oss.str();
 
                 conflicts.push_back(ci);
@@ -85,7 +85,8 @@ std::optional<ConflictInfo> ConflictDetector::check_conflict_with_list(
 
     for (const auto* existing_off : existing) {
         if (has_conflict(new_course, *existing_off)) {
-            ConflictInfo ci;
+            ConflictInfo ci;                            /*ConflictInfo 记录了哪两门课在什么时间段冲突。它不是仅仅为了内部使用，而是最终会展示给用户（或记录到报告中）：
+                                                        这些信息会写进 result.summary，并在前端显示给用户，让用户明白“为什么我的课表排不了”、“哪些课时间撞了”。这是项目需求里“可解释性”的重要体现。记录冲突细节，可以帮助诊断问题。*/
             ci.course1_id   = new_course.course_basic_ID;
             ci.course2_id   = existing_off->course_basic_ID;
             ci.course1_name = new_course.course_name;
@@ -95,7 +96,7 @@ std::optional<ConflictInfo> ConflictDetector::check_conflict_with_list(
         }
     }
 
-    return std::nullopt;
+    return std::nullopt;    //表示“空”，这比用指针（nullptr 表示没有）更安全，也比用 bool 加输出参数更优雅。它清晰地表达了“可能无结果”的语义。
 }
 
 }  // namespace course_planner
