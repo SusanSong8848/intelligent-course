@@ -146,49 +146,52 @@ const CourseOffering* Scheduler::select_best_offering(
 // ============================================================================
 
 void Scheduler::fill_electives(ScheduleResult& result) {
-    std::set<std::string> elective_pool = constraint_.elective_candidate_course_basic_IDs;  //所有选修课id
+    std::set<std::string> elective_pool = constraint_.elective_candidate_course_basic_IDs;
 
-    for (int term = 1; term <= 8; ++term) {
-        if (constraint_.is_term_blocked(term)) continue;    //该term是否因交换/实习不可排课
+    // 为了负载均衡，按学期当前学分从低到高处理（优先往空闲学期填选修课）
+    for (const auto& elec_id : elective_pool) {
+        if (scheduled_basic_ids_.count(elec_id)) continue;    // 已被安排过（同一门课只安排一次）
+        if (!prereq_graph_.are_prerequisites_satisfied(elec_id, scheduled_basic_ids_)) continue;        //先修不满足
 
-        double current_credit = result.semester_credits[term];  //该term现在已有学分
-        double max_credit = constraint_.max_credit_for_term(term);
+        auto it = dataset_.course_map.find(elec_id);
+        if (it == dataset_.course_map.end()) continue;
+        const auto& basic = it->second;
 
-        for (const auto& elec_id : elective_pool) {
-            // 已被安排过（同一门课只安排一次）
-            if (scheduled_basic_ids_.count(elec_id)) continue;
+        // 按当前学分从小到大排序的学期列表（空闲学期优先）
+        std::vector<int> ordered_terms;
+        for (int t = 1; t <= 8; ++t) {
+            if (!constraint_.is_term_blocked(t) && term_matches_semester(t, basic.semester)) {
+                ordered_terms.push_back(t);     //空闲学期优先
+            }
+        }
+        std::sort(ordered_terms.begin(), ordered_terms.end(), [&](int a, int b) {
+            return result.semester_credits[a] < result.semester_credits[b];     //总学分小的学期int排前面
+        });
 
-            // 检查先修是否满足
-            if (!prereq_graph_.are_prerequisites_satisfied(elec_id, scheduled_basic_ids_)) continue;
-
-            auto it = dataset_.course_map.find(elec_id);
-            if (it == dataset_.course_map.end()) continue;      //判断在不在总课程里面
-            const auto& basic = it->second;
-
-            // 季节匹配
-            if (!term_matches_semester(term, basic.semester)) continue;
+        for (int term : ordered_terms) {
+            double current_credit = result.semester_credits[term];
+            double max_credit = constraint_.max_credit_for_term(term);
 
             // 学分上限检查
             if (current_credit + basic.credit > max_credit) continue;
 
             // 选择最佳教学班（使用软约束评分）
-            auto& semester_courses = result.semester_courses[term]; //每学期的选课列表 map<int, vector<const CourseOffering *>> semester_courses
-            const CourseOffering* best = select_best_offering(elec_id, term, semester_courses, true);   //soft加入：喜欢/不希望 积分
+            auto& semester_courses = result.semester_courses[term];     //每学期的选课列表 map<int, vector<const CourseOffering *>> semester_courses
+            const CourseOffering* best = select_best_offering(elec_id, term, semester_courses, true);       //soft加入：喜欢/不希望 积分
             if (best == nullptr) continue;
 
-            // 加入
             semester_courses.push_back(best);
             scheduled_basic_ids_.insert(elec_id);
-            current_credit += best->credit;
-            result.semester_credits[term] = current_credit;
+            result.semester_credits[term] = current_credit + best->credit;
             result.total_credit += best->credit;
             result.elective_credit_earned += best->credit;
 
             // 选修学分已足？
-            if (result.elective_credit_earned >= constraint_.derived_min_elective_credit_for_total  
+            if (result.elective_credit_earned >= constraint_.derived_min_elective_credit_for_total
                 && result.total_credit >= constraint_.min_total_credit) {   //现选修学分 > 导出学分：eg.73
-                return;  // 选修学分和总学分都够了
+                return;     // 选修学分和总学分都够了
             }
+            break;  // 当前选修课已安排，处理下一门
         }
     }
 }
