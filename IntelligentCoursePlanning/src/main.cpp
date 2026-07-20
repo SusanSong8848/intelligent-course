@@ -33,6 +33,7 @@
 #include "models/course.h"
 #include "models/constraint.h"
 #include "core/scheduler.h"
+#include "data/json_exporter.h"
 
 using namespace course_planner;
 
@@ -305,6 +306,18 @@ int main() {
             for (const auto& d : diag) {
                 std::cout << "  " << d << std::endl;
             }
+        }
+
+        // Step 5: 导出 JSON 文件供前端使用
+        std::cout << "\n[4/4] 导出规划结果..." << std::endl;
+        std::string exe_dir = get_exe_dir();
+        std::string result_path = exe_dir + "/data/schedule_result.json";
+        if (export_result_json(result, constraint, dataset, result_path)) {
+            std::cout << "  ✅ 规划结果已导出: " << result_path << std::endl;
+        }
+        std::string dataset_path = exe_dir + "/data/course_dataset.json";
+        if (export_dataset_json(dataset, dataset_path)) {
+            std::cout << "  ✅ 课程数据已导出: " << dataset_path << std::endl;
         }
 
         std::cout << "\n========================================" << std::endl;
