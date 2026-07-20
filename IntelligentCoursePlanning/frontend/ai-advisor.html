@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 选课建议 - 智能课程规划系统</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:"Microsoft YaHei",sans-serif; background:#f0f2f5; color:#333; }
+.header { background:linear-gradient(135deg,#1a73e8,#0d47a1); color:#fff; padding:16px 24px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+.header h1 { font-size:20px; }
+.header a { color:#fff; text-decoration:none; font-size:13px; opacity:0.8; }
+.header a:hover { opacity:1; }
+.header .mode-badge { padding:2px 10px; border-radius:10px; font-size:11px; }
+.header .mode-badge.online { background:#e8f5e9; color:#4caf50; }
+.header .mode-badge.offline { background:#fff3e0; color:#ff9800; }
+.container { max-width:900px; margin:0 auto; padding:16px; }
+
+.api-config { background:#fff; border-radius:8px; padding:12px 16px; margin-bottom:8px; box-shadow:0 1px 3px rgba(0,0,0,0.1); display:flex; gap:8px; align-items:center; flex-wrap:wrap; font-size:13px; }
+.api-config input { padding:6px 10px; border:1px solid #ddd; border-radius:4px; font-size:13px; width:280px; }
+.api-config button { padding:6px 14px; background:#4caf50; color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:12px; }
+.api-config button.off { background:#f44336; }
+.api-config .status { margin-left:auto; font-size:12px; }
+
+.chat-panel { background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.1); }
+.chat-header { padding:16px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:8px; }
+.chat-header .badge { background:#e8f5e9; color:#4caf50; padding:2px 8px; border-radius:10px; font-size:11px; }
+.chat-messages { height:480px; overflow-y:auto; padding:16px; }
+.msg { margin-bottom:16px; display:flex; gap:10px; }
+.msg.user { flex-direction:row-reverse; }
+.msg .avatar { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+.msg.ai .avatar { background:#e8f0fe; color:#1a73e8; }
+.msg.user .avatar { background:#e8f5e9; color:#4caf50; }
+.msg .bubble { max-width:82%; padding:10px 14px; border-radius:12px; font-size:14px; line-height:1.6; white-space:pre-wrap; }
+.msg.ai .bubble { background:#e8f0fe; border-top-left-radius:2px; }
+.msg.user .bubble { background:#e8f5e9; border-top-right-radius:2px; }
+.msg .bubble .stats { margin-top:8px; padding:8px; background:rgba(255,255,255,0.5); border-radius:6px; font-size:12px; }
+
+.quick-actions { padding:12px 16px; border-top:1px solid #eee; display:flex; gap:8px; flex-wrap:wrap; }
+.quick-btn { padding:6px 14px; background:#e8f0fe; color:#1a73e8; border:1px solid #bbdefb; border-radius:16px; cursor:pointer; font-size:12px; transition:all 0.2s; }
+.quick-btn:hover { background:#bbdefb; }
+
+.input-area { padding:12px 16px; border-top:1px solid #eee; display:flex; gap:8px; align-items:center; }
+.input-area textarea { flex:1; padding:10px 14px; border:1px solid #ddd; border-radius:16px; font-size:14px; outline:none; resize:none; height:44px; font-family:inherit; }
+.input-area textarea:focus { border-color:#1a73e8; }
+.input-area button { padding:10px 24px; background:#1a73e8; color:#fff; border:none; border-radius:20px; cursor:pointer; font-size:14px; white-space:nowrap; }
+.input-area button:hover { background:#1557b0; }
+
+.loading { display:none; text-align:center; padding:8px; color:#999; font-size:12px; }
+.loading.show { display:block; }
+
+.modal-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center; }
+.modal-overlay.show { display:flex; }
+.modal { background:#fff; border-radius:12px; padding:24px; max-width:500px; width:90%; }
+.modal h3 { margin-bottom:12px; }
+.modal input { width:100%; padding:10px; border:1px solid #ddd; border-radius:6px; font-size:14px; margin-bottom:12px; }
+.modal .actions { display:flex; gap:8px; justify-content:flex-end; }
+.modal .actions button { padding:8px 20px; border:none; border-radius:6px; cursor:pointer; font-size:14px; }
+.modal .btn-primary { background:#1a73e8; color:#fff; }
+.modal .btn-secondary { background:#eee; color:#333; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>🤖 AI 选课顾问</h1>
+  <a href="index.html">← 返回主页面</a>
+  <span class="mode-badge online" id="mode-badge" style="display:none;">🟢 DeepSeek 在线</span>
+  <span class="mode-badge offline" id="mode-offline-badge">🟠 离线模拟</span>
+</div>
+<div class="container">
+  <!-- API 密钥配置栏 -->
+  <div class="api-config">
+    <span>🔑</span>
+    <input type="password" id="api-key-input" placeholder="输入 DeepSeek API Key（按Enter保存）" onkeydown="if(event.key==='Enter')saveApiKey()" />
+    <button onclick="saveApiKey()">保存密钥</button>
+    <button class="off" onclick="clearApiKey()">离线模式</button>
+    <input type="text" id="api-url-input" placeholder="API URL (默认DeepSeek)" value="https://api.deepseek.com/chat/completions" style="width:320px;" />
+    <span class="status" id="api-status">未配置</span>
+  </div>
+
+  <div class="chat-panel">
+    <div class="chat-header">
+      <span style="font-size:24px;">🤖</span>
+      <div>
+        <div style="font-weight:bold;">智能选课顾问</div>
+        <div style="font-size:11px;color:#999;">结合课程数据与AI大模型的智能选课建议</div>
+      </div>
+    </div>
+    <div class="chat-messages" id="messages"></div>
+    <div class="loading" id="loading">AI 正在分析...</div>
+    <div class="quick-actions" id="quick-actions">
+      <button class="quick-btn" onclick="askTemplate('credit')">📉 降低前三学期学分压力</button>
+      <button class="quick-btn" onclick="askTemplate('time')">🕐 避开周五下午</button>
+      <button class="quick-btn" onclick="askTemplate('ml')">🤖 尽快修机器学习</button>
+      <button class="quick-btn" onclick="askTemplate('eval')">📊 评价当前方案</button>
+      <button class="quick-btn" onclick="askTemplate('exchange')">🌍 大三交换</button>
+    </div>
+    <div class="input-area">
+      <textarea id="user-input" placeholder="描述你的选课需求，例如：我希望前三学期课程压力小一些..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}"></textarea>
+      <button onclick="sendMessage()">发送</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==================== State ====================
+let scheduleData = null;
+let apiKey = localStorage.getItem('deepseek_api_key') || '';
+let apiUrl = localStorage.getItem('deepseek_api_url') || 'https://api.deepseek.com/chat/completions';
+let conversationHistory = [];
+
+// ==================== API Key Management ====================
+document.getElementById('api-key-input').value = apiKey ? '••••••••' + apiKey.slice(-4) : '';
+document.getElementById('api-url-input').value = apiUrl;
+updateApiStatus();
+
+function saveApiKey() {
+  const input = document.getElementById('api-key-input');
+  const val = input.value.trim();
+  if (val && val !== '••••••••' + apiKey.slice(-4)) {
+    apiKey = val;
+    localStorage.setItem('deepseek_api_key', apiKey);
+    input.value = '••••••••' + apiKey.slice(-4);
+  }
+  apiUrl = document.getElementById('api-url-input').value.trim();
+  localStorage.setItem('deepseek_api_url', apiUrl);
+  updateApiStatus();
+  document.getElementById('api-status').textContent = '✅ 已保存';
+  setTimeout(() => document.getElementById('api-status').textContent = apiKey ? '🟢 在线' : '未配置', 2000);
+}
+
+function clearApiKey() {
+  apiKey = '';
+  localStorage.removeItem('deepseek_api_key');
+  document.getElementById('api-key-input').value = '';
+  updateApiStatus();
+  document.getElementById('api-status').textContent = '🟠 离线';
+}
+
+function updateApiStatus() {
+  document.getElementById('mode-badge').style.display = apiKey ? '' : 'none';
+  document.getElementById('mode-offline-badge').style.display = apiKey ? 'none' : '';
+  document.getElementById('api-status').textContent = apiKey ? '🟢 在线' : '🟠 离线';
+}
+
+// Initialize API key on load
+if (apiKey) {
+  document.getElementById('api-key-input').value = '••••••••' + apiKey.slice(-4);
+  updateApiStatus();
+}
+
+// ==================== Data Loading ====================
+// 从 apikey.json 自动加载 API 密钥（该文件不在 Git 仓库中）
+fetch('apikey.json?' + Date.now())
+  .then(r => r.json())
+  .then(data => {
+    if (data.deepseek_api_key && !apiKey) {
+      apiKey = data.deepseek_api_key;
+      if (data.deepseek_api_url) apiUrl = data.deepseek_api_url;
+      document.getElementById('api-key-input').value = '••••••••' + apiKey.slice(-4);
+      document.getElementById('api-url-input').value = apiUrl;
+      updateApiStatus();
+      console.log('✅ API 密钥已从 apikey.json 自动加载');
+    }
+  })
+  .catch(() => console.log('apikey.json 未找到，使用离线模式或手动输入密钥'));
+
+fetch('data/schedule_result.json?' + Date.now())
+  .then(r => r.json())
+  .then(d => scheduleData = d)
+  .catch(() => console.log('规划数据未加载，部分功能受限'));
+
+// ==================== Chat Functions ====================
+function addMessage(type, text) {
+  const msgs = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = 'msg ' + type;
+  div.innerHTML = `<div class="avatar">${type==='ai'?'🤖':'👤'}</div><div class="bubble">${text}</div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function showLoading() { document.getElementById('loading').classList.add('show'); }
+function hideLoading() { document.getElementById('loading').classList.remove('show'); }
+
+function sendMessage() {
+  const input = document.getElementById('user-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  addMessage('user', text);
+
+  if (apiKey) {
+    callDeepSeekAPI(text);
+  } else {
+    showLoading();
+    setTimeout(() => { hideLoading(); addMessage('ai', processOffline(text)); }, 600 + Math.random() * 600);
+  }
+}
+
+function askTemplate(type) {
+  const templates = {
+    credit: '我希望前三学期课程压力小一些，每学期不超过18学分，尽量不要安排周五下午的课程，可以怎么选课？',
+    time: '我不希望周五下午和周末上课，尽量避开晚课（第11-13节），可以怎么调整？',
+    ml: '我想尽快修完机器学习相关课程，包括机器学习、深度学习、强化学习，可以怎么安排先修课？',
+    eval: '请对我当前的选课情况给出评价，特别是学分负载和时间安排方面。',
+    exchange: '我大三（第5、6学期）要出国交换不安排本校课程，大四想实习（第7、8学期也尽量不排课），请帮我规划。'
+  };
+  const text = templates[type] || type;
+  addMessage('user', text);
+  if (apiKey) {
+    callDeepSeekAPI(text);
+  } else {
+    showLoading();
+    setTimeout(() => { hideLoading(); addMessage('ai', processOffline(text)); }, 800);
+  }
+}
+
+// ==================== DeepSeek API Call ====================
+async function callDeepSeekAPI(userMessage) {
+  showLoading();
+
+  // Build system prompt with real course data context
+  const systemPrompt = buildSystemPrompt();
+
+  // Build messages array
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    ...conversationHistory.slice(-6),  // Keep last 6 messages for context
+    { role: 'user', content: userMessage }
+  ];
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + apiKey
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: messages,
+        temperature: 0.7,
+        max_tokens: 1024,
+        stream: false
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error?.message || `HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    const reply = data.choices[0].message.content;
+
+    conversationHistory.push({ role: 'user', content: userMessage });
+    conversationHistory.push({ role: 'assistant', content: reply });
+    // Keep history manageable
+    if (conversationHistory.length > 20) conversationHistory = conversationHistory.slice(-20);
+
+    hideLoading();
+    addMessage('ai', reply);
+  } catch (err) {
+    hideLoading();
+    console.error('DeepSeek API error:', err);
+    addMessage('ai', '⚠️ API 调用失败: ' + err.message + '\n\n已切换到离线模式为你分析：\n\n' + processOffline(userMessage));
+    // Don't add failed attempt to conversation history
+  }
+}
+
+function buildSystemPrompt() {
+  let prompt = `你是"智能课程规划系统"的AI选课顾问。你帮助大学生制定八学期课程规划。
+
+## 系统数据概要
+- 课程总数: 1000门, 教学班: 3000个
+- 专业覆盖: 计算机科学、软件工程、数据科学、人工智能、数学、统计等
+- 课程类别: 专业必修课、学科基础课、专业选修课
+- 学期规则: 秋季(1/3/5/7)、春季(2/4/6/8)，课程可后移到同季节更晚学期
+
+## 当前规划结果
+`;
+
+  if (scheduleData) {
+    const s = scheduleData.summary;
+    prompt += `- 总学分: ${s.total_credit}/${s.min_total_credit}\n`;
+    prompt += `- 选修学分: ${s.elective_credit}/${s.min_elective_credit}\n`;
+    prompt += `- 规划结果: ${scheduleData.success ? '成功' : '存在未解决问题'}\n`;
+    prompt += `- 未安排课程: ${scheduleData.unassigned?.length || 0}门\n`;
+
+    // Semester breakdown
+    scheduleData.semesters?.forEach(sem => {
+      const courseNames = sem.courses?.map(c => c.name).join('、') || '无';
+      prompt += `- 第${sem.term}学期: ${sem.credit?.toFixed(1)}/${sem.max_credit}学分, ${sem.courses?.length||0}门课: ${courseNames.substring(0, 120)}\n`;
+    });
+
+    // Preference reports
+    if (scheduleData.preference_reports) {
+      scheduleData.preference_reports.filter(r => r.total_preferred + r.total_avoid > 0).forEach(r => {
+        prompt += `- 第${r.term}学期偏好: ${r.detail}\n`;
+      });
+    }
+  } else {
+    prompt += `(规划数据未加载，请用户先在主页执行规划)\n`;
+  }
+
+  prompt += `
+## 你的能力
+1. 根据用户需求建议调整学分上限、时间段避让、学期封锁
+2. 分析先修链，推荐最优选课顺序
+3. 评价当前方案的负载均衡性和时间偏好满足度
+4. 结合真实课程数据给出具体建议
+5. 如果数据未加载，引导用户先执行规划
+
+## 回复格式
+- 使用清晰的段落和要点
+- 提供具体的学期号和课程名
+- 如果需要调整约束，说明具体的数值`;
+  return prompt;
+}
+
+// ==================== Offline Fallback ====================
+function processOffline(text) {
+  const hasCredit = /学分|压力|轻松|不超过/.test(text);
+  const hasTime = /周五|周末|晚课|早八|下午|不想.*课|避开/.test(text);
+  const hasML = /机器学习|深度学习|强化学习|人工智能/.test(text);
+  const hasEval = /评价|检查|当前/.test(text);
+  const hasExchange = /交换|实习|不排/.test(text);
+
+  if (hasCredit && hasTime) return formatCreditTimeResponse();
+  if (hasML) return formatMLResponse();
+  if (hasEval) return formatEvalResponse();
+  if (hasExchange) return formatExchangeResponse();
+  return formatGeneralResponse(text);
+}
+
+function formatCreditTimeResponse() {
+  return `💡 **分析结果**：我会把前3学期学分上限设置为18学分，并添加以下软约束避让时段：
+
+📊 **约束调整**：
+  • 第1-3学期 max_credit: 40 → 18
+  • 新增避让: Fri 6-9 (周五下午)
+  • 新增避让: Sun 1-13 (周日全天)
+
+📋 **预期规划结果**：
+  • 总学分: 150+（满足毕业要求）
+  • 必修课: 全部完成 ✅
+  • 选修课分布: 集中在第4-8学期
+  • 前3学期学分降至36-45区间
+
+💡 **建议**：学分上限降低后，前3学期课程密度减少，但部分选修课会推迟到高年级。`;
+}
+
+function formatMLResponse() {
+  return `💡 **先修链分析**：机器学习相关课程需要以下先修基础：
+
+📚 **先修课程链**：
+  数学分析I → 数学分析II → 线性代数/概率论
+  程序设计原理 → 数据结构 → 算法设计与分析
+  离散数学 → 人工智能/机器学习
+
+🤖 **推荐路径**：
+  第1-2学期: 数学分析 + 程序设计 + 离散数学
+  第3-4学期: 线性代数/概率论 + 数据结构 + 机器学习实践
+  第5-6学期: 深度学习 + 强化学习 + 模式识别`;
+}
+
+function formatEvalResponse() {
+  if (!scheduleData) return '📊 **当前方案评价**：请先在主页加载规划数据。';
+  const s = scheduleData.summary;
+  let maxCredit = 0, maxTerm = 0;
+  scheduleData.semesters.forEach(sem => { if (sem.credit > maxCredit) { maxCredit = sem.credit; maxTerm = sem.term; } });
+  return `📊 **当前方案评价**：
+
+📋 总学分: ${s.total_credit}/${s.min_total_credit} ✅
+📋 选修学分: ${s.elective_credit}/${s.min_elective_credit} ✅
+⚠️ 负载: 第${maxTerm}学期最高(${maxCredit}学分)
+${maxCredit >= 38 ? '💡 建议后移1-2门选修课' : '✅ 负载均衡良好'}`;
+}
+
+function formatExchangeResponse() {
+  return `💡 **大三交换+大四实习规划**：
+
+📊 第5-8学期全部封锁 → 课程必须在前4学期完成。
+  • 前4学期总容量: 4×40 = 160 ≥ 150 ✅
+  • 第1-2学期: 集中基础课（数学、编程）
+  • 第3-4学期: 集中专业核心课
+  • 需将学分上限拉满才能达成目标`;
+}
+
+function formatGeneralResponse(text) {
+  return `💡 根据你的需求"${text.substring(0, 50)}..."，我建议：
+📋 可调整: 学分上限 | 避让时段 | 封锁学期 | 方案评价
+💡 请点击快捷按钮或描述详细需求（学期号、学分值、时间偏好等）`;
+}
+
+// Initial greeting
+setTimeout(() => {
+  addMessage('ai', '👋 你好！我是 AI 选课顾问。\n\n🔑 输入 DeepSeek API Key 可启用在线智能模式\n🟠 或直接使用离线模拟分析\n\n💡 用自然语言告诉我你的选课需求吧！');
+}, 300);
+</script>
+</body>
+</html>
