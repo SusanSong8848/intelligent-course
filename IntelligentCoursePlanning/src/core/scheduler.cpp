@@ -95,31 +95,18 @@ const CourseOffering* Scheduler::select_best_offering(
     const std::string& course_id,
     int term,
     const std::vector<const CourseOffering*>& current_semester_courses,
-    bool soft) {
+    bool /*soft*/) {
 
     auto it = dataset_.course_map.find(course_id);
     if (it == dataset_.course_map.end()) return nullptr;
 
     const auto& basic = it->second;
 
-    // 必修课阶段（hard）：找到第一个不冲突的教学班就立即返回，无需遍历全部
-    if (!soft) {
-        for (const auto& off : basic.offerings) {
-            if (!off.can_schedule_in_term(term)) continue;
-            auto conflict = ConflictDetector::check_conflict_with_list(off, current_semester_courses);
-            if (!conflict.has_value()) {
-                return &off;  // 直接返回，不做多余比较
-            }
-        }
-        return nullptr;  // 所有教学班都冲突
-    }
-
-    // 选修课阶段（soft）：收集所有可行教学班，按软约束评分选最优
+    // 收集所有可行教学班（不冲突 + 季节匹配）
     std::vector<const CourseOffering*> feasible;
     for (const auto& off : basic.offerings) {
-        if (!off.can_schedule_in_term(term)) continue;  //秋季课程只能排在奇数学期(1/3/5/7)，春季课程只能排在偶数学期(2/4/6/8)
-        // 检查是否与当前已选课程冲突
-        auto conflict = ConflictDetector::check_conflict_with_list(off, current_semester_courses);  //没有冲突return std::nullopt; //如果冲突返回冲突对象  ConflictInfo
+        if (!off.can_schedule_in_term(term)) continue;
+        auto conflict = ConflictDetector::check_conflict_with_list(off, current_semester_courses);
         if (!conflict.has_value()) {
             feasible.push_back(&off);
         }
@@ -127,28 +114,30 @@ const CourseOffering* Scheduler::select_best_offering(
 
     if (feasible.empty()) return nullptr;
 
-    // 使用软约束评分（选修课阶段），选得分最高的
+    // 按软约束评分选最优教学班（优先偏好时段，避开避让时段）
+    // 必修课和选修课统一使用此逻辑：能选到最符合偏好的教学班
     if (!constraint_.preferred_time_blocks.empty() || !constraint_.avoid_time_blocks.empty()) {
         int best_score = -999;
         const CourseOffering* best = nullptr;
         for (const auto* off : feasible) {
             int score = 0;
             for (const auto& ts : off->time_slots) {
-                for (const auto& pref : constraint_.preferred_time_blocks) {        //这个教学班有preferred的time_slot：+1分
+                for (const auto& pref : constraint_.preferred_time_blocks) {
                     if (pref.contains(ts)) score++;
                 }
-                for (const auto& avoid : constraint_.avoid_time_blocks) {           //这个教学班有avoid的time_slot：+1分
+                for (const auto& avoid : constraint_.avoid_time_blocks) {
                     if (avoid.contains(ts)) score--;
                 }
             }
             if (score > best_score) {
                 best_score = score;
-                best = off;     //挑出最好的一个教学班
+                best = off;
             }
         }
         return best ? best : feasible[0];
     }
-// 默认返回第一个可行的（教学班序号最小的）
+
+    // 无偏好配置时，返回第一个可行的（教学班序号最小的）
     return feasible[0];
 }
 
