@@ -16,7 +16,7 @@
 
 namespace course_planner {
 
-/** @brief 将字符串中的双引号和反斜杠转义（为了正常写到.jion文件里？） */
+/** @brief 将字符串中的双引号和反斜杠转义 */
 static std::string json_escape(const std::string& s) {
     std::string result;
     for (char ch : s) {
@@ -129,21 +129,25 @@ bool export_result_json(const ScheduleResult& result,
     }
     out << "]\n  },\n";
 
-    // 个性化偏好报告
+    // 个性化偏好报告（确保每学期都输出完整字段）
     out << "  \"preference_reports\": [\n";
     for (int t = 1; t <= 8; ++t) {
         auto it = result.semester_preferences.find(t);
-        out << "    {\"term\": " << t << ", ";
         if (it != result.semester_preferences.end()) {
             const auto& r = it->second;
-            out << "\"satisfied_preferred\": " << r.satisfied_preferred << ", ";
-            out << "\"total_preferred\": " << r.total_preferred << ", ";
-            out << "\"satisfied_avoid\": " << r.satisfied_avoid << ", ";
-            out << "\"total_avoid\": " << r.total_avoid << ", ";
-            out << "\"satisfaction_rate\": " << r.satisfaction_rate << ", ";
-            out << "\"detail\": \"" << json_escape(r.detail) << "\"";
+            out << "    {\"term\": " << t
+                << ", \"satisfied_preferred\": " << r.satisfied_preferred
+                << ", \"total_preferred\": " << r.total_preferred
+                << ", \"satisfied_avoid\": " << r.satisfied_avoid
+                << ", \"total_avoid\": " << r.total_avoid
+                << ", \"satisfaction_rate\": " << r.satisfaction_rate
+                << ", \"detail\": \"" << json_escape(r.detail) << "\"}";
+        } else {
+            out << "    {\"term\": " << t
+                << ", \"satisfied_preferred\": 0, \"total_preferred\": 0"
+                << ", \"satisfied_avoid\": 0, \"total_avoid\": 0"
+                << ", \"satisfaction_rate\": 0, \"detail\": \"\"}";
         }
-        out << "}";
         if (t < 8) out << ",";
         out << "\n";
     }
