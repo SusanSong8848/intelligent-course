@@ -46,7 +46,7 @@ std::map<std::string, int> Scheduler::compute_prerequisite_depth() const {
         for (const auto& pre_id : prereqs) {
             max_depth = std::max(max_depth, dfs(pre_id) + 1);       //递归
         }
-        depth[id] = max_depth;  //找到了每个课程的最长先修链深度（比如id是很多们课的先修，取最大的那个数字（最前面）。这样同级的不影响随便排，不同级的一定有先后关系）
+        depth[id] = max_depth;  //找到了每个课程的最长先修链深度（比如id是很多们课的后修，取最大的那个数字（最后面）。这样同级的不影响随便排，不同级的一定有先后关系）
         return max_depth;
     };
 
@@ -366,7 +366,7 @@ ScheduleResult Scheduler::run() {
 
     //------以上都在初始化 Scheduler--------
 
-    // 计算优先级（按先修链深度降序（越深越前面））    //class std::map<std::string, int> depth_map，得到每门必修课的层级（同级课之间不影响随便排，不同级的一定有先后关系）
+    // 计算优先级（按先修链深度降序（越深越后面））    //class std::map<std::string, int> depth_map，得到每门必修课的层级（同级课之间不影响随便排，不同级的一定有先后关系）
     auto depth_map = compute_prerequisite_depth();  
 /*必修课要深度排序，选修课不用：
 必修课按深度排序是为了优先排瓶颈课，而选修课的约束不同：
@@ -395,12 +395,12 @@ ScheduleResult Scheduler::run() {
             auto candidates = get_candidates_for_term(term);        //std::vector<std::string> candidates，有资格的候选者（未被封锁、季节匹配、课程可以后移、先修课已全部完成）
             if (candidates.empty()) break;
 
-            // 按优先级排序：先修链深度大（越前面） → 学分高 → ID字典序
+            // 按优先级排序：先修链深度大（越后面） → 学分高 → ID字典序
             std::sort(candidates.begin(), candidates.end(),
                 [&](const std::string& a, const std::string& b) {
                     int da = depth_map.count(a) ? depth_map[a] : 0;
                     int db = depth_map.count(b) ? depth_map[b] : 0;
-                    if (da != db) return da > db;
+                    if (da != db) return da > db;       //先排越后面的课，获取最多的学分，最严苛的限制要求（保证越高级(先修课越多)的可优先排进课表）
 
                     auto it_a = dataset_.course_map.find(a);
                     auto it_b = dataset_.course_map.find(b);
