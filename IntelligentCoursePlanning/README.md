@@ -172,6 +172,6 @@ Phase 5: 生成可解释的规划摘要
 
 - [项目需求文档](docs/requirements/智能课程规划系统.md)
 - [数据说明](data/README.md)
-- [AI 选课建议 SKILL 定义](docs/AI_SKILL.md)
-- [实验报告](docs/实验报告.md)
+- [AI 选课建议 SKILL 定义](docs/reports//AI_SKILL.md)
+- [实验报告](docs/reports//实验报告.md)
 - [NOTE-我们两人的随记笔记：能学到新东西](docs/_notes/NOTE.md)
