@@ -3,7 +3,7 @@
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>智能课程规划系统</title>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 <style>
-:root{--bg:#f7f6f2;--panel:#fff;--ink:#1d2329;--muted:#65717d;--line:#d8d4ca;--teal:#276b62;--blue:#34699a;--gold:#b07a20;--red:#a24f4a;--green:#4d7c3f;--shadow:0 1px 2px rgba(20,24,28,0.08)}
+:root{--bg:#f7f6f2;--panel:#fff;--ink:#1d2329;--muted:#65717d;--line:#d8d4ca;--teal:#276b62;--blue:#34699a;--gold:#b07a20;--red:#a24f4a;--green:#4d7c3f;--shadow:0 1px 2px rgba(20,24,28,0.08);--alert-bg:#fff3f0;--alert-border:#e0a9a5;--warn-bg:#fef9e7;--warn-border:#e0c97f;--ok-bg:#eaf5ea;--ok-border:#a3c9a3}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--bg);line-height:1.45}
 header{position:sticky;top:0;z-index:10;background:rgba(247,246,242,0.97);border-bottom:1px solid var(--line);backdrop-filter:blur(8px)}
@@ -23,6 +23,7 @@ h2{margin:0;font-size:14px;font-weight:750}
 .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
 .metric{padding:10px 12px;background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow)}
 .metric strong{display:block;font-size:20px;color:var(--teal)}.metric span{color:var(--muted);font-size:11px}
+.metric.alert{border-color:var(--red);background:var(--alert-bg)}.metric.alert strong{color:var(--red)}
 .filter-bar{display:flex;gap:6px;flex-wrap:wrap;align-items:end;margin-bottom:10px}
 .filter-bar label{display:grid;gap:3px;color:var(--muted);font-size:11px;font-weight:650}
 .filter-bar select,.filter-bar input{height:32px;padding:5px 7px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:12px;color:var(--ink);background:var(--panel)}
@@ -34,17 +35,29 @@ h2{margin:0;font-size:14px;font-weight:750}
 .semester-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
 .semester-card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-height:90px}
 .semester-card.blocked{background:#fdf6ec;border-color:var(--gold)}
+.semester-card.over-credit{background:var(--alert-bg);border-color:var(--red)}
+.semester-card.under-credit{background:var(--warn-bg);border-color:var(--gold)}
 .t-title{font-weight:750;font-size:13px;margin-bottom:3px}.t-credit{font-size:11px;color:var(--teal);margin-bottom:4px}
 .course-item{font-size:10px;padding:2px 3px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;border-radius:2px;border-bottom:1px dashed #ece8df}
 .course-item:hover{background:#f3f0e8}.course-item .c-remove{color:var(--red);cursor:pointer;font-size:11px;display:none}.course-item:hover .c-remove{display:inline}
+.course-item.pref-match{background:#e8f4e8}.course-item.pref-conflict{background:#fce8e8}
 .cat-required{color:var(--red)}.cat-foundation{color:var(--green)}.cat-elective{color:var(--gold)}
 .chart-box{width:100%;height:420px}
 table{width:100%;border-collapse:collapse;font-size:11px}th,td{padding:6px 7px;border-bottom:1px solid #ece8df;text-align:left}th{position:sticky;top:0;background:#f3f0e8;z-index:1;font-weight:700}td{color:#2d353d}tr:hover{background:#f8f6f0}
 .actions-row{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
 .modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.4);z-index:1000;justify-content:center;align-items:center}.modal-overlay.show{display:flex}
-.modal{background:var(--panel);border-radius:12px;padding:22px;max-width:600px;max-height:80vh;overflow-y:auto}.modal .close{float:right;cursor:pointer;font-size:18px;color:var(--muted)}
+.modal{background:var(--panel);border-radius:12px;padding:22px;max-width:700px;max-height:85vh;overflow-y:auto}.modal .close{float:right;cursor:pointer;font-size:18px;color:var(--muted)}
 .heatmaps-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 .heatmap-box .hm-title{font-size:11px;font-weight:750;text-align:center;margin-bottom:2px}
+.alert-banner{padding:8px 12px;border-radius:6px;font-size:11px;margin:6px 0;display:none}
+.alert-banner.error{background:var(--alert-bg);border:1px solid var(--alert-border);color:var(--red);display:block}
+.alert-banner.warn{background:var(--warn-bg);border:1px solid var(--warn-border);color:var(--gold);display:block}
+.alert-banner.ok{background:var(--ok-bg);border:1px solid var(--ok-border);color:var(--green);display:block}
+.global-constraint-row{display:flex;gap:12px;flex-wrap:wrap;align-items:end;margin-bottom:6px}
+.global-constraint-row label{display:grid;gap:2px;color:var(--muted);font-size:10px;font-weight:650}
+.global-constraint-row input{width:65px;height:28px;padding:4px 6px;border:1px solid var(--line);border-radius:5px;font-size:12px;text-align:center}
+.badge{display:inline-block;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700;margin-left:3px}
+.badge-hard{background:#fce8e8;color:var(--red)}.badge-soft{background:#e8f4e8;color:var(--green)}
 @media(max-width:900px){.semester-grid,.heatmaps-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:500px){.semester-grid,.heatmaps-grid{grid-template-columns:1fr}}
 </style></head>
 <body>
@@ -55,8 +68,32 @@ table{width:100%;border-collapse:collapse;font-size:11px}th,td{padding:6px 7px;b
 <div id="tab-dashboard" class="tab-content active">
   <section><div class="section-head"><h2>学分统计</h2><span class="section-note" id="stat-status">等待加载</span></div><div class="section-body"><div class="metrics" id="stats-cards"></div>
   <div class="actions-row"><button class="btn-primary" onclick="loadScheduleData()">🔄 加载规划数据</button><button class="btn-primary" onclick="loadCourseData()">📥 导入课程数据</button><button class="btn-success" onclick="exportCSV()">📤 导出CSV</button><button class="btn-success" onclick="exportJSON()">📤 导出JSON</button></div></div></section>
+  <section><div class="section-head"><h2>⚙️ 全局学分约束</h2><span class="section-note">手动调整总体学分上下限</span></div><div class="section-body">
+    <div class="global-constraint-row">
+      <label>总学分下限<input type="number" id="g-min-total" value="140" min="0" step="1" onchange="onGlobalConstraintChange()"></label>
+      <label>总学分上限<input type="number" id="g-max-total" value="200" min="0" step="1" onchange="onGlobalConstraintChange()"></label>
+      <label>选修学分下限<input type="number" id="g-min-elective" value="20" min="0" step="1" onchange="onGlobalConstraintChange()"></label>
+      <label>每学期默认上限<input type="number" id="g-def-max" value="40" min="1" step="1" onchange="onGlobalConstraintChange()"></label>
+      <label>每学期默认下限<input type="number" id="g-def-min" value="0" min="0" step="1" onchange="onGlobalConstraintChange()"></label>
+      <button class="btn-primary" onclick="applyGlobalConstraints()">✅ 应用</button>
+      <button class="btn-ghost" onclick="resetGlobalConstraints()">↺ 重置</button>
+    </div>
+    <div class="alert-banner" id="global-constraint-alert"></div>
+  </div></section>
   <section><div class="section-head"><h2>每学期学分分布</h2></div><div class="section-body"><div class="chart-box" id="chart-credit"></div></div></section>
   <section><div class="section-head"><h2>🎯 个性化时间偏好满足度</h2></div><div class="section-body" id="pref-panel"><span class="section-note">等待加载数据</span></div></section>
+  <section><div class="section-head"><h2>⚙️ 自定义时间偏好</h2><span class="section-note" id="pref-status">修改偏好后需重新检查</span></div><div class="section-body">
+    <div class="filter-bar" style="margin-bottom:8px">
+      <label>时段<select id="pref-day"><option>Mon</option><option>Tue</option><option>Wed</option><option>Thu</option><option>Fri</option><option>Sat</option><option>Sun</option></select></label>
+      <label>开始节<select id="pref-beg"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option><option>12</option><option>13</option></select></label>
+      <label>持续节<select id="pref-last"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option><option>12</option><option>13</option></select></label>
+      <label>类型<select id="pref-type"><option value="prefer">🟢 偏好(想排)</option><option value="avoid">🔴 避让(不想排)</option></select></label>
+      <label>约束<select id="pref-hard"><option value="soft">软约束</option><option value="hard">硬约束</option></select></label>
+      <label>备注<input type="text" id="pref-reason" style="width:120px" placeholder="如:避开周五下午"></label>
+      <button class="btn-primary" onclick="addTimePreference()">➕ 添加</button>
+    </div>
+    <div id="pref-list" style="font-size:11px;max-height:200px;overflow:auto"></div>
+  </div></section>
 </div>
 
 <div id="tab-courses" class="tab-content">
@@ -74,14 +111,18 @@ table{width:100%;border-collapse:collapse;font-size:11px}th,td{padding:6px 7px;b
 </div>
 
 <div id="tab-schedule" class="tab-content">
-  <section><div class="section-head"><h2>八学期互动课表</h2></div><div class="section-body"><div class="actions-row">
-    <button class="btn-primary" onclick="loadScheduleData()">🔄 重新加载</button><button class="btn-success" onclick="savePlan()">💾 保存</button><button class="btn-warning" onclick="loadSavedPlan()">📂 加载</button><button class="btn-ghost" onclick="clearPlan()">🗑️ 清空</button><button class="btn-danger" onclick="showConflicts()">⚠️ 冲突</button></div>
+  <section><div class="section-head"><h2>八学期互动课表</h2></div><div class="section-body">
+    <div class="alert-banner" id="schedule-global-alert"></div>
+    <div class="actions-row">
+    <button class="btn-primary" onclick="loadScheduleData()">🔄 重新加载</button><button class="btn-success" onclick="savePlan()">💾 保存</button><button class="btn-warning" onclick="loadSavedPlan()">📂 加载</button><button class="btn-ghost" onclick="clearPlan()">🗑️ 清空</button>
+    <button class="btn-danger" onclick="showConflicts()">⚠️ 冲突详情</button><button class="btn-primary" onclick="recheckSchedule()">🔍 全面检查</button></div>
     <div class="semester-grid" id="semester-grid"></div></div></section>
   <section><div class="section-head"><h2>➕ 手动添加课程</h2></div><div class="section-body"><div class="filter-bar">
     <label>选择课程<select id="manual-course" style="width:280px"><option value="">-- 未加载课程数据 --</option></select></label>
     <label>目标学期<select id="manual-term"><option value="1">第1学期(秋)</option><option value="2">第2学期(春)</option><option value="3">第3学期(秋)</option><option value="4">第4学期(春)</option><option value="5">第5学期(秋)</option><option value="6">第6学期(春)</option><option value="7">第7学期(秋)</option><option value="8">第8学期(春)</option></select></label>
-    <button class="btn-primary" onclick="manualAddCourse()">➕ 添加</button><button class="btn-warning" onclick="recheckSchedule()">🔍 检查冲突</button></div>
+    <button class="btn-primary" onclick="manualAddCourse()">➕ 添加</button><button class="btn-warning" onclick="recheckSchedule()">🔍 全面检查</button></div>
     <div id="manual-msg" style="font-size:12px;margin-top:6px"></div></div></section>
+  <section><div class="section-head"><h2>📋 偏好满足状态（当前方案）</h2></div><div class="section-body" id="pref-status-panel"><span class="section-note">点击"全面检查"后显示</span></div></section>
 </div>
 
 <div id="tab-heatmap" class="tab-content">
@@ -95,43 +136,227 @@ table{width:100%;border-collapse:collapse;font-size:11px}th,td{padding:6px 7px;b
 </div>
 
 </main>
-<div class="modal-overlay" id="conflict-modal"><div class="modal"><span class="close" onclick="closeModal()">✕</span><h3>⚠️ 冲突详情</h3><div id="conflict-content"></div><div class="actions-row"><button class="btn-primary" onclick="closeModal()">关闭</button></div></div></div>
+<div class="modal-overlay" id="conflict-modal"><div class="modal"><span class="close" onclick="closeModal()">✕</span><h3>⚠️ 冲突与检查详情</h3><div id="conflict-content"></div><div class="actions-row"><button class="btn-primary" onclick="closeModal()">关闭</button></div></div></div>
 
 <script>
-let C=[],S=null,F=[],M=null,CI={};function GC(id){if(!CI[id])CI[id]=echarts.init(document.getElementById(id));return CI[id]}
+// ===== 全局状态 =====
+let C=[],S=null,F=[],M=null,CI={},prefList=[];
+// 全局学分约束
+let globalConstraints={min_total:140,max_total:200,min_elective:20,default_max:40,default_min:0};
+
+function GC(id){if(!CI[id])CI[id]=echarts.init(document.getElementById(id));return CI[id]}
 function switchTab(n){
   document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
-  document.getElementById('tab-'+n).classList.add('active');event.target.classList.add('active');
+  document.getElementById('tab-'+n).classList.add('active');
+  if(event&&event.target)event.target.classList.add('active');
   setTimeout(()=>Object.values(CI).forEach(c=>c.resize()),80);
-  if(n==='dashboard')renderCreditChart();if(n==='graph')renderDependencyGraph();
-  if(n==='heatmap')renderHeatmaps();if(n==='schedule'){refreshManualCourseList();renderInteractiveSchedule()}
+  if(n==='dashboard')renderDashboard();
+  if(n==='graph')renderDependencyGraph();
+  if(n==='heatmap')renderHeatmaps();
+  if(n==='schedule'){refreshManualCourseList();renderInteractiveSchedule();renderScheduleGlobalAlert()}
 }
 
-function loadScheduleData(){fetch('data/schedule_result.json?'+Date.now()).then(r=>r.json()).then(d=>{S=d;M=JSON.parse(JSON.stringify(d.semesters));renderDashboard();renderInteractiveSchedule();renderHeatmaps();document.getElementById('stat-status').textContent='✅ 已加载 ('+d.summary.total_credit+'学分)';}).catch(()=>{document.getElementById('stats-cards').innerHTML='<div style="padding:16px;color:var(--red)">⚠️ 请用HTTP服务器打开（双击start.bat），确保已运行course_planner.exe</div>';})}
-function loadCourseData(){let i=document.createElement('input');i.type='file';i.accept='.json';i.onchange=e=>{let f=e.target.files[0],r=new FileReader();r.onload=ev=>{C=JSON.parse(ev.target.result);F=[...C];populateFilters();renderCourseTable();refreshManualCourseList();renderDependencyGraph();renderHeatmaps();alert('✅ 课程数据加载成功！共'+C.length+'门课程')};r.readAsText(f)};i.click()}
+function loadScheduleData(){
+  fetch('data/schedule_result.json?'+Date.now()).then(r=>r.json()).then(d=>{
+    S=d;M=JSON.parse(JSON.stringify(d.semesters));
+    // 从后端读取规划时的约束值作为初始默认值
+    if(d.summary){
+      globalConstraints._backend_min_total=d.summary.min_total_credit||0;
+      globalConstraints._backend_min_elective=d.summary.min_elective_credit||0;
+      // 仅在用户未手动修改时，用后端值初始化面板
+      if(!globalConstraints._userSet){
+        globalConstraints.min_total=globalConstraints._backend_min_total||140;
+        globalConstraints.min_elective=globalConstraints._backend_min_elective||20;
+      }
+    }
+    // 确保每学期都有min_credit
+    M.forEach(s=>{
+      if(s.min_credit===undefined)s.min_credit=globalConstraints.default_min;
+      if(s.max_credit===undefined)s.max_credit=globalConstraints.default_max;
+    });
+    syncGlobalConstraintsUI();
+    renderDashboard();renderInteractiveSchedule();renderHeatmaps();
+    document.getElementById('stat-status').textContent='✅ 已加载 ('+d.summary.total_credit+'学分)';
+  }).catch(()=>{
+    document.getElementById('stats-cards').innerHTML='<div style="padding:16px;color:var(--red)">⚠️ 请用HTTP服务器打开（双击start.bat），确保已运行course_planner.exe</div>';
+  })
+}
+function loadCourseData(){
+  let i=document.createElement('input');i.type='file';i.accept='.json';
+  i.onchange=e=>{
+    let f=e.target.files[0],r=new FileReader();
+    r.onload=ev=>{C=JSON.parse(ev.target.result);F=[...C];populateFilters();renderCourseTable();refreshManualCourseList();renderDependencyGraph();renderHeatmaps();alert('✅ 课程数据加载成功！共'+C.length+'门课程')};
+    r.readAsText(f)};
+  i.click()
+}
 
+// ===== 全局学分约束管理 =====
+function syncGlobalConstraintsUI(){
+  document.getElementById('g-min-total').value=globalConstraints.min_total;
+  document.getElementById('g-max-total').value=globalConstraints.max_total;
+  document.getElementById('g-min-elective').value=globalConstraints.min_elective;
+  document.getElementById('g-def-max').value=globalConstraints.default_max;
+  document.getElementById('g-def-min').value=globalConstraints.default_min;
+}
+function saveConstraintsToLocal(){
+  localStorage.setItem('user_constraints',JSON.stringify({
+    min_total:globalConstraints.min_total,max_total:globalConstraints.max_total,
+    min_elective:globalConstraints.min_elective,
+    default_max:globalConstraints.default_max,default_min:globalConstraints.default_min
+  }));
+}
+function restoreSavedConstraints(){
+  try{
+    let s=localStorage.getItem('user_constraints');
+    if(s){
+      let c=JSON.parse(s);
+      // 只恢复合理的值（防止旧数据中的异常值如73被恢复）
+      if(typeof c.min_total==='number'&&c.min_total>=0&&c.min_total<=500)globalConstraints.min_total=c.min_total;
+      if(typeof c.max_total==='number'&&c.max_total>=0&&c.max_total<=500)globalConstraints.max_total=c.max_total;
+      if(typeof c.min_elective==='number'&&c.min_elective>=0&&c.min_elective<=200)globalConstraints.min_elective=c.min_elective;
+      if(typeof c.default_max==='number'&&c.default_max>=1&&c.default_max<=100)globalConstraints.default_max=c.default_max;
+      if(typeof c.default_min==='number'&&c.default_min>=0&&c.default_min<=100)globalConstraints.default_min=c.default_min;
+    }
+  }catch(e){}
+}
+function onGlobalConstraintChange(){
+  let el=document.getElementById('global-constraint-alert');
+  el.className='alert-banner warn';
+  el.textContent='⚠️ 约束已修改，请点击"应用"按钮生效';
+  el.style.display='block';
+}
+function applyGlobalConstraints(){
+  globalConstraints.min_total=parseInt(document.getElementById('g-min-total').value)||140;
+  globalConstraints.max_total=parseInt(document.getElementById('g-max-total').value)||200;
+  globalConstraints.min_elective=parseInt(document.getElementById('g-min-elective').value)||20;
+  globalConstraints.default_max=parseInt(document.getElementById('g-def-max').value)||40;
+  globalConstraints.default_min=parseInt(document.getElementById('g-def-min').value)||0;
+  // 更新所有学期的默认值（如果当前学期没有自定义值）
+  if(M)M.forEach(s=>{
+    if(!s._customMax)s.max_credit=globalConstraints.default_max;
+    if(!s._customMin)s.min_credit=globalConstraints.default_min;
+  });
+  saveConstraintsToLocal();
+  globalConstraints._userSet=true;
+  let el=document.getElementById('global-constraint-alert');
+  el.className='alert-banner ok';
+  el.textContent='✅ 全局约束已应用！总学分: '+globalConstraints.min_total+'-'+globalConstraints.max_total+' | 选修≥'+globalConstraints.min_elective+' | 学期默认: '+globalConstraints.default_min+'-'+globalConstraints.default_max+'分';
+  el.style.display='block';
+  // 全面刷新所有视图和检查
+  recalcCredits();
+  renderInteractiveSchedule();renderCreditChart();renderDashboard();renderHeatmaps();
+  recheckSchedule();checkGlobalConstraints();renderScheduleGlobalAlert();
+}
+function resetGlobalConstraints(){
+  globalConstraints={min_total:140,max_total:200,min_elective:20,default_max:40,default_min:0};
+  syncGlobalConstraintsUI();
+  if(M)M.forEach(s=>{s.max_credit=40;s.min_credit=0;s._customMax=false;s._customMin=false});
+  saveConstraintsToLocal();
+  let el=document.getElementById('global-constraint-alert');
+  el.className='alert-banner ok';
+  el.textContent='✅ 已重置为默认约束';
+  el.style.display='block';
+  renderInteractiveSchedule();renderCreditChart();renderDashboard();
+}
+
+function checkGlobalConstraints(){
+  if(!M)return;
+  let total=M.reduce((a,s)=>a+s.credit,0);
+  let elective=M.reduce((a,s)=>a+s.courses.filter(c=>c.category==='专业选修课').reduce((x,c)=>x+c.credit,0),0);
+  let msgs=[];
+  if(total<globalConstraints.min_total)msgs.push('总学分不足：当前'+total.toFixed(1)+' < 要求'+globalConstraints.min_total);
+  if(total>globalConstraints.max_total)msgs.push('总学分超限：当前'+total.toFixed(1)+' > 上限'+globalConstraints.max_total);
+  if(elective<globalConstraints.min_elective)msgs.push('选修学分不足：当前'+elective.toFixed(1)+' < 要求'+globalConstraints.min_elective);
+  M.forEach(s=>{
+    if(s.credit<s.min_credit)msgs.push('第'+s.term+'学期学分不足：'+s.credit.toFixed(1)+' < 下限'+s.min_credit);
+    if(s.credit>s.max_credit)msgs.push('第'+s.term+'学期学分超限：'+s.credit.toFixed(1)+' > 上限'+s.max_credit);
+  });
+  let el=document.getElementById('schedule-global-alert');
+  if(msgs.length){
+    el.className='alert-banner error';
+    el.innerHTML='⚠️ <b>约束违规</b>：<br>'+msgs.map(m=>'• '+m).join('<br>');
+    el.style.display='block';
+  }else{
+    el.className='alert-banner ok';
+    el.innerHTML='✅ 所有学分约束均已满足';
+    el.style.display='block';
+  }
+  return msgs;
+}
+function renderScheduleGlobalAlert(){checkGlobalConstraints()}
+
+// ===== Dashboard =====
 function renderDashboard(){
   if(!S)return;let s=S.summary;
-  document.getElementById('stats-cards').innerHTML=`<div class="metric"><strong>${s.total_credit}</strong><span>总学分(需≥${s.min_total_credit})</span></div><div class="metric"><strong>${s.elective_credit}</strong><span>选修学分(需≥${s.min_elective_credit})</span></div><div class="metric"><strong>${S.success?'✅':'❌'}</strong><span>规划结果</span></div><div class="metric"><strong>${S.unassigned?.length||0}</strong><span>未安排课程</span></div>`;
-  // 偏好满足度
-  let pr=S.preference_reports||[],html='';
-  pr.forEach(r=>{if((r.total_preferred||0)+(r.total_avoid||0)>0)html+=`<div style="font-size:12px;color:var(--muted);margin:3px 0">📊 第${r.term}学期: ${r.detail||'无数据'}</div>`;});
-  document.getElementById('pref-panel').innerHTML=html||'<span class="section-note">当前方案未配置个性化时间偏好</span>';
+  // 使用原始规划数据（schedule_result.json），因为M中的课程可能缺少category字段
+  let total=s.total_credit,elective=s.elective_credit;
+  // 但如果有手动编辑，按每学期学分总和计算实际total
+  if(M){
+    let manualTotal=M.reduce((a,sem)=>a+sem.credit,0);
+    total=manualTotal||total; // 如果M有学分数据则使用M的total
+  }
+  let totalOk=total>=globalConstraints.min_total&&total<=globalConstraints.max_total;
+  let electiveOk=elective>=globalConstraints.min_elective;
+  document.getElementById('stats-cards').innerHTML=
+    `<div class="metric${totalOk?'':' alert'}"><strong>${total.toFixed(1)}</strong><span>总学分(需${globalConstraints.min_total}-${globalConstraints.max_total})${totalOk?'✅':'⚠️'}</span></div>`+
+    `<div class="metric${electiveOk?'':' alert'}"><strong>${elective.toFixed(1)}</strong><span>选修学分(需≥${globalConstraints.min_elective})${electiveOk?'✅':'⚠️'}<br><small style="font-size:9px;color:var(--muted)">可在面板调整下限</small></span></div>`+
+    `<div class="metric"><strong>${S.success?'✅':'❌'}</strong><span>规划结果</span></div>`+
+    `<div class="metric"><strong>${S.unassigned?.length||0}</strong><span>未安排课程</span></div>`;
+  // 系统偏好报告（后端）
+  let pr=S.preference_reports||[],sysHtml='';
+  pr.forEach(r=>{if((r.total_preferred||0)+(r.total_avoid||0)>0)sysHtml+=`<div style="font-size:11px;color:var(--muted);margin:2px 0">📊 系统:第${r.term}学期: ${r.detail||'无数据'}</div>`;});
+  // 用户自定义偏好实时分析
+  let userHtml='';
+  if(M&&prefList.length){
+    let totalPrefs=0,satisfiedPrefs=0,violatedAvoids=0,totalAvoids=0;
+    prefList.forEach(p=>{
+      let matched=false,conflicted=false;
+      M.forEach(sem=>{sem.courses?.forEach(co=>{
+        if(co.timeslots)co.timeslots.forEach(ts=>{
+          if(ts.day===p.day&&!(ts.beg+ts.last-1<p.beg||p.beg+p.last-1<ts.beg)){
+            if(p.type==='avoid')conflicted=true;
+            else matched=true;
+          }
+        })
+      })});
+      if(p.type==='avoid'){totalAvoids++;if(!conflicted)satisfiedPrefs++;}
+      else {totalPrefs++;if(matched)satisfiedPrefs++;}
+    });
+    let totalAll=totalPrefs+totalAvoids;
+    let rate=totalAll>0?Math.round(satisfiedPrefs/totalAll*100):100;
+    userHtml=`<div style="font-size:12px;color:var(--teal);margin:6px 0;font-weight:700">👤 自定义偏好满足率：${rate}%（${satisfiedPrefs}/${totalAll}条）</div>`;
+    userHtml+=`<div style="font-size:10px;color:var(--muted)">🟢 偏好 ${totalPrefs>0?Math.round(satisfiedPrefs/Math.max(1,totalPrefs-(totalAll-totalPrefs-satisfiedPrefs))*100):'-'}% · 🔴 避让 ${totalAvoids>0?Math.round((totalAvoids-(totalAll-totalPrefs-(satisfiedPrefs-(totalAll-totalAvoids))))/Math.max(1,totalAvoids)*100):'-'}%</div>`;
+    let prefDetail=checkPreferencesDetailed();
+    if(prefDetail)userHtml+=`<div style="margin-top:6px">${prefDetail}</div>`;
+  }
+  let panelHtml=sysHtml+userHtml;
+  document.getElementById('pref-panel').innerHTML=panelHtml||'<span class="section-note">当前方案未配置个性化时间偏好</span>';
   renderCreditChart()
 }
 function renderCreditChart(){
-  let c=GC('chart-credit');if(!S)return;let t=[1,2,3,4,5,6,7,8];
-  c.setOption({tooltip:{trigger:'axis'},legend:{data:['实际学分','学分上限']},xAxis:{data:t.map(n=>'第'+n+'学期')},yAxis:{name:'学分'},
-    series:[{name:'实际学分',type:'bar',barWidth:'50%',data:t.map(n=>(M||S.semesters).find(s=>s.term===n)?.credit||0),itemStyle:{color:'#276b62'},label:{show:true,position:'top',fontSize:11}},
-            {name:'学分上限',type:'line',data:t.map(n=>(M||S.semesters).find(s=>s.term===n)?.max_credit||40),lineStyle:{color:'#a24f4a',type:'dashed',width:2},symbol:'none'}]})
+  let c=GC('chart-credit');if(!S&&!M)return;
+  let sems=M||(S?S.semesters:[]),t=[1,2,3,4,5,6,7,8];
+  c.setOption({tooltip:{trigger:'axis'},legend:{data:['实际学分','学分上限','学分下限']},
+    xAxis:{data:t.map(n=>'第'+n+'学期')},yAxis:{name:'学分'},
+    series:[
+      {name:'实际学分',type:'bar',barWidth:'50%',
+        data:t.map(n=>{let s=sems.find(x=>x.term===n);if(!s)return 0;return s.credit}),
+        itemStyle:{color:'#276b62'},label:{show:true,position:'top',fontSize:11}},
+      {name:'学分上限',type:'line',
+        data:t.map(n=>{let s=sems.find(x=>x.term===n);return s?s.max_credit:globalConstraints.default_max}),
+        lineStyle:{color:'#a24f4a',type:'dashed',width:2},symbol:'none'},
+      {name:'学分下限',type:'line',
+        data:t.map(n=>{let s=sems.find(x=>x.term===n);return s?(s.min_credit||0):globalConstraints.default_min}),
+        lineStyle:{color:'#b07a20',type:'dotted',width:2},symbol:'none'}
+    ]})
 }
 
+// ===== 热力图 =====
 function renderHeatmaps(){
   let g=document.getElementById('hm-grid'),sems=M||(S?S.semesters:[]);
   if(!sems.length){g.innerHTML='<p style="color:var(--muted);grid-column:1/-1;text-align:center;padding:50px">请先加载规划数据</p>';return}
   let dw=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],dl=['一','二','三','四','五','六','日'],html='';
-  // 总览热力图
   let allMat=Array(7).fill().map(()=>Array(13).fill(0));
   sems.forEach(sem=>{sem.courses?.forEach(co=>{if(co.timeslots)co.timeslots.forEach(ts=>{let di=dw.indexOf(ts.day);if(di>=0)for(let p=ts.beg-1;p<ts.beg+ts.last-1&&p<13;p++)allMat[di][p]++})})});
   setTimeout(()=>{
@@ -142,26 +367,25 @@ function renderHeatmaps(){
       visualMap:{min:0,max:Math.max(1,...ad.map(x=>x[2])),calculable:true,orient:'horizontal',left:'center',bottom:-5,inRange:{color:['#f3f0e8','#b5d5c5','#276b62','#1b4d44']}},
       series:[{type:'heatmap',data:ad,label:{show:true,fontSize:8,formatter:p=>p.value[2]||''},emphasis:{itemStyle:{shadowBlur:10,shadowColor:'rgba(0,0,0,.5)'}}}]});
   },50);
-  // 各学期热力图
   sems.forEach(sem=>{
     html+=`<div class="heatmap-box"><div class="hm-title">第${sem.term}学期</div><div class="chart-box" id="hm-${sem.term}" style="height:200px"></div></div>`});
   g.innerHTML=html;
   setTimeout(()=>sems.forEach(sem=>{
     let c=echarts.init(document.getElementById('hm-'+sem.term));
-    let mat=Array(7).fill().map(()=>Array(13).fill(null));let hd=[]; // null=无课, 颜色字符串=有课
+    let mat=Array(7).fill().map(()=>Array(13).fill(null));let hd=[];
     let slotMap={};
     sem.courses?.forEach(co=>{
-      let cColor='#a24f4a'; // 默认红色=专业必修
-      if(co.category==='学科基础课')cColor='#b07a20'; // 黄色=学科基础
-      else if(co.category==='专业选修课')cColor='#4d7c3f'; // 绿色=专业选修
+      let cColor='#a24f4a';
+      if(co.category==='学科基础课')cColor='#b07a20';
+      else if(co.category==='专业选修课')cColor='#4d7c3f';
       let spId=co.sp_id||'',cid=co.id||'';
       if(co.timeslots)co.timeslots.forEach(ts=>{
         let di=dw.indexOf(ts.day);if(di>=0)for(let p=ts.beg-1;p<ts.beg+ts.last-1&&p<13;p++){
           mat[di][p]=cColor;let k=di+'_'+p;
           if(!slotMap[k])slotMap[k]=[];
-          slotMap[k].push({name:co.name, credit:co.credit, teacher:co.teacher||'',
-            classroom:co.classroom||'', spId:spId, code:cid+'.'+spId,
-            cat:co.category, color:cColor, day:ts.day, beg:ts.beg, last:ts.last});
+          slotMap[k].push({name:co.name,credit:co.credit,teacher:co.teacher||'',
+            classroom:co.classroom||'',spId:spId,code:cid+'.'+spId,
+            cat:co.category,color:cColor,day:ts.day,beg:ts.beg,last:ts.last});
         }
       })});
     dw.forEach((d,di)=>{for(let p=0;p<13;p++)hd.push({value:[p,6-di,mat[di][p]?1:0],itemStyle:mat[di][p]?{color:mat[di][p]}:{}})});
@@ -179,27 +403,287 @@ function renderHeatmaps(){
   }),150)
 }
 
-function renderInteractiveSchedule(){let g=document.getElementById('semester-grid'),sems=M||(S?S.semesters:[]);if(!sems.length){g.innerHTML='<p style="color:var(--muted);grid-column:1/-1;text-align:center;padding:40px">请先加载规划数据</p>';return}let html='';for(let t=1;t<=8;t++){let sem=sems.find(s=>s.term===t)||{credit:0,max_credit:40,courses:[],blocked:false};html+=`<div class="semester-card${sem.blocked?' blocked':''}"><div class="t-title">第${t}学期 ${sem.blocked?'🚫':''}<span style="color:var(--muted);font-size:10px">${sem.courses.length}门</span></div><div class="t-credit">学分:${sem.credit.toFixed(1)}/${sem.max_credit}</div>`;sem.courses.forEach((c,idx)=>{let cat=c.category==='专业必修课'?'cat-required':(c.category==='学科基础课'?'cat-foundation':'cat-elective');html+=`<div class="course-item" title="${c.name}(${c.id})&#10;教师:${c.teacher} ${c.classroom}"><span class="c-name ${cat}">${c.name}</span><span style="color:var(--teal);font-weight:700;font-size:9px">${c.credit}分</span><span class="c-remove" onclick="removeCourse(${t},${idx})">✕</span></div>`});html+='</div>'}g.innerHTML=html;recalcCredits()}
-function removeCourse(t,i){if(!M)return;let sem=M.find(s=>s.term===t);if(!sem)return;let r=sem.courses.splice(i,1)[0];sem.credit-=r.credit;renderInteractiveSchedule();renderCreditChart();renderHeatmaps();document.getElementById('manual-msg').innerHTML=`<span style="color:var(--red)">已移除：${r.name}</span>`}
-function manualAddCourse(){let cid=document.getElementById('manual-course').value,term=parseInt(document.getElementById('manual-term').value);if(!cid||!M){document.getElementById('manual-msg').innerHTML='<span style="color:var(--red)">请先加载数据并选择课程</span>';return}let course=C.find(c=>c.id===cid);if(!course)return;let s=term%2===1?'秋季学期':'春季学期';if(course.semester!==s){document.getElementById('manual-msg').innerHTML=`<span style="color:var(--red)">${course.name}是${course.semester}课程</span>`;return}if(M.some(s=>s.courses.some(c=>c.id===cid))){document.getElementById('manual-msg').innerHTML='<span style="color:var(--gold)">已在课表中</span>';return}let sem=M.find(s=>s.term===term);sem.courses.push({id:course.id,sp_id:course.offerings[0].sp_id,name:course.name,category:course.category,credit:course.credit,teacher:course.offerings[0].teacher,classroom:course.offerings[0].classroom,timeslots:course.offerings[0].timeslots});sem.credit+=course.credit;renderInteractiveSchedule();renderCreditChart();renderHeatmaps();document.getElementById('manual-msg').innerHTML=`<span style="color:var(--green)">✅ 已添加 ${course.name}</span>`}
+// ===== 互动课表操作 =====
+function removeCourse(t,i){
+  if(!M)return;let sem=M.find(s=>s.term===t);if(!sem)return;
+  let r=sem.courses.splice(i,1)[0];sem.credit-=r.credit;
+  renderInteractiveSchedule();renderCreditChart();renderHeatmaps();
+  document.getElementById('manual-msg').innerHTML=`<span style="color:var(--red)">已移除：${r.name}</span>`;
+  // 移除后自动检查并刷新面板
+  setTimeout(()=>{recheckSchedule();checkGlobalConstraints();renderScheduleGlobalAlert();renderDashboard()},100);
+}
 function recalcCredits(){if(!M)return;M.forEach(s=>{s.credit=s.courses.reduce((a,c)=>a+c.credit,0)})}
-function savePlan(){if(!M)return;localStorage.setItem('saved_schedule',JSON.stringify(M));alert('已保存')}
-function loadSavedPlan(){let s=localStorage.getItem('saved_schedule');if(!s)return;M=JSON.parse(s);renderInteractiveSchedule();renderCreditChart();renderHeatmaps();alert('已加载')}
-function clearPlan(){if(!M||!confirm('确定清空？'))return;M.forEach(s=>{s.courses=[];s.credit=0});renderInteractiveSchedule();renderCreditChart();renderHeatmaps()}
-function showConflicts(){if(!M)return;let cs=[];M.forEach(sem=>{for(let i=0;i<sem.courses.length;i++)for(let j=i+1;j<sem.courses.length;j++){let a=sem.courses[i],b=sem.courses[j];if(a.timeslots&&b.timeslots)for(let sa of a.timeslots)for(let sb of b.timeslots)if(sa.day===sb.day&&!(sa.beg+sa.last-1<sb.beg||sb.beg+sb.last-1<sa.beg))cs.push({t:sem.term,detail:`${a.name} ${sa.day}${sa.beg}-${sa.beg+sa.last-1} ⚡ ${b.name} ${sb.day}${sb.beg}-${sb.beg+sb.last-1}`})}});document.getElementById('conflict-content').innerHTML=cs.length?('<ul style="font-size:12px">'+cs.map(c=>`<li>第${c.t}学期:${c.detail}</li>`).join('')+'</ul>'):'<p style="color:var(--green)">✅ 当前方案无时间冲突</p>';document.getElementById('conflict-modal').classList.add('show')}
-function recheckSchedule(){let c=0;M?.forEach(sem=>{for(let i=0;i<sem.courses.length;i++)for(let j=i+1;j<sem.courses.length;j++){let a=sem.courses[i],b=sem.courses[j];if(a.timeslots&&b.timeslots)for(let sa of a.timeslots)for(let sb of b.timeslots)if(sa.day===sb.day&&!(sa.beg+sa.last-1<sb.beg||sb.beg+sb.last-1<sa.beg))c++}});document.getElementById('manual-msg').innerHTML=c>0?`<span style="color:var(--red)">⚠️ ${c}对时间冲突</span>`:'<span style="color:var(--green)">✅ 无冲突</span>'}
+function savePlan(){
+  if(!M)return;
+  let plan={semesters:M,globalConstraints:globalConstraints,prefList:prefList,savedAt:new Date().toISOString()};
+  localStorage.setItem('saved_schedule',JSON.stringify(plan));
+  alert('💾 方案已保存（含学分约束和偏好设置）');
+}
+function loadSavedPlan(){
+  let s=localStorage.getItem('saved_schedule');if(!s){alert('暂无已保存方案');return}
+  try{
+    let plan=JSON.parse(s);
+    if(plan.semesters){M=plan.semesters;recalcCredits()}
+    if(plan.globalConstraints){
+      // 安全恢复约束（过滤异常值）
+      let gc=plan.globalConstraints;
+      if(typeof gc.min_elective==='number'&&gc.min_elective>=0&&gc.min_elective<=200)globalConstraints.min_elective=gc.min_elective;
+      if(typeof gc.min_total==='number'&&gc.min_total>=0)globalConstraints.min_total=gc.min_total;
+      if(typeof gc.max_total==='number'&&gc.max_total>=0)globalConstraints.max_total=gc.max_total;
+      if(typeof gc.default_max==='number'&&gc.default_max>=1)globalConstraints.default_max=gc.default_max;
+      if(typeof gc.default_min==='number'&&gc.default_min>=0)globalConstraints.default_min=gc.default_min;
+      // 对于旧数据中 min_elective > 200 的异常值，读取但不覆盖用户已有设置
+      syncGlobalConstraintsUI();
+    }
+    if(plan.prefList){prefList=plan.prefList;renderPrefList()}
+    renderInteractiveSchedule();renderCreditChart();renderHeatmaps();renderScheduleGlobalAlert();
+    alert('📂 方案已加载（保存时间：'+new Date(plan.savedAt).toLocaleString()+'）');
+  }catch(e){alert('加载失败，数据可能已损坏')}
+}
+function clearPlan(){
+  if(!M||!confirm('确定清空所有学期课程？此操作不可撤销！'))return;
+  M.forEach(s=>{s.courses=[];s.credit=0});
+  renderInteractiveSchedule();renderCreditChart();renderHeatmaps();renderScheduleGlobalAlert();
+}
+
+// ===== 冲突检查（时间冲突） =====
+function showConflicts(){
+  if(!M)return;
+  let timeConflicts=[],creditViolations=[],prereqViolations=[];
+  // 时间冲突
+  M.forEach(sem=>{for(let i=0;i<sem.courses.length;i++)for(let j=i+1;j<sem.courses.length;j++){
+    let a=sem.courses[i],b=sem.courses[j];
+    if(a.timeslots&&b.timeslots)for(let sa of a.timeslots)for(let sb of b.timeslots)
+      if(sa.day===sb.day&&!(sa.beg+sa.last-1<sb.beg||sb.beg+sb.last-1<sa.beg))
+        timeConflicts.push({t:sem.term,detail:`${a.name} ${sa.day}${sa.beg}-${sa.beg+sa.last-1}节 ⚡ ${b.name} ${sb.day}${sb.beg}-${sb.beg+sb.last-1}节`})
+  }});
+  // 学分违规
+  let total=M.reduce((a,s)=>a+s.credit,0),elective=M.reduce((a,s)=>a+s.courses.filter(c=>c.category==='专业选修课').reduce((x,c)=>x+c.credit,0),0);
+  if(total<globalConstraints.min_total)creditViolations.push(`总学分不足：${total.toFixed(1)} < 要求${globalConstraints.min_total}`);
+  if(total>globalConstraints.max_total)creditViolations.push(`总学分超限：${total.toFixed(1)} > 上限${globalConstraints.max_total}`);
+  if(elective<globalConstraints.min_elective)creditViolations.push(`选修学分不足：${elective.toFixed(1)} < 要求${globalConstraints.min_elective}`);
+  M.forEach(s=>{
+    if(s.credit<s.min_credit)creditViolations.push(`第${s.term}学期低于下限：${s.credit.toFixed(1)} < ${s.min_credit}`);
+    if(s.credit>s.max_credit)creditViolations.push(`第${s.term}学期超出上限：${s.credit.toFixed(1)} > ${s.max_credit}`);
+  });
+  // 先修关系
+  prereqViolations=checkPrerequisites();
+  // 偏好
+  let prefReport=checkPreferencesDetailed();
+
+  let html='';
+  // 时间冲突
+  html+='<h4 style="margin-top:10px">🕐 时间冲突</h4>';
+  html+=timeConflicts.length?('<ul style="font-size:12px">'+timeConflicts.map(c=>`<li style="color:var(--red)">第${c.t}学期: ${c.detail}</li>`).join('')+'</ul>'):'<p style="color:var(--green);font-size:12px">✅ 无时间冲突</p>';
+  // 学分违规
+  html+='<h4 style="margin-top:16px">📊 学分约束</h4>';
+  html+=creditViolations.length?('<ul style="font-size:12px">'+creditViolations.map(m=>`<li style="color:var(--red)">⚠️ ${m}</li>`).join('')+'</ul>'):'<p style="color:var(--green);font-size:12px">✅ 所有学分约束均已满足</p>';
+  // 先修关系
+  html+='<h4 style="margin-top:16px">🔗 先修关系</h4>';
+  if(prereqViolations.length){
+    html+='<ul style="font-size:12px">'+prereqViolations.map(v=>`<li style="color:var(--red)">⚠️ ${v}</li>`).join('')+'</ul>';
+  }else{html+='<p style="color:var(--green);font-size:12px">✅ 所有先修关系均已满足</p>';}
+  // 偏好
+  html+='<h4 style="margin-top:16px">🎯 偏好满足度</h4>';
+  html+=prefReport||'<p style="color:var(--muted);font-size:12px">未配置时间偏好</p>';
+
+  document.getElementById('conflict-content').innerHTML=html;
+  document.getElementById('conflict-modal').classList.add('show');
+}
 function closeModal(){document.getElementById('conflict-modal').classList.remove('show')}
+
+// ===== 先修关系检查 =====
+function checkPrerequisites(){
+  if(!M||!C.length)return[];
+  let violations=[],scheduledOrder={}; // 课程ID -> 学期号
+  M.forEach(sem=>{sem.courses.forEach(c=>{scheduledOrder[c.id]=sem.term})});
+  M.forEach(sem=>{sem.courses.forEach(c=>{
+    let courseData=C.find(x=>x.id===c.id);
+    if(courseData&&courseData.prereq_ids){
+      courseData.prereq_ids.forEach(pid=>{
+        let prereqTerm=scheduledOrder[pid];
+        if(prereqTerm===undefined){
+          violations.push(`第${sem.term}学期"${c.name}"的先修课"${pid}"未被安排在课表中`);
+        }else if(prereqTerm>=sem.term){
+          violations.push(`第${sem.term}学期"${c.name}"的先修课"${pid}"在第${prereqTerm}学期 → 先修课必须在前置学期（当前同时或更晚）`);
+        }
+      });
+    }
+  })});
+  return violations;
+}
+
+// ===== 详细偏好检查 =====
+function checkPreferencesDetailed(){
+  if(!M||!prefList.length){
+    // 即使没有自定义偏好，也要检查系统偏好
+  }
+  if(!prefList.length)return null;
+  let html='';
+  // 对每条偏好，检查所有课程
+  prefList.forEach((p,idx)=>{
+    let matched=[],conflicted=[];
+    M.forEach(sem=>{sem.courses?.forEach(co=>{
+      if(co.timeslots)co.timeslots.forEach(ts=>{
+        if(ts.day===p.day&&!(ts.beg+ts.last-1<p.beg||p.beg+p.last-1<ts.beg)){
+          let slotInfo=`第${sem.term}学期 "${co.name}" ${ts.day}第${ts.beg}-${ts.beg+ts.last-1}节`;
+          if(p.type==='avoid')conflicted.push(slotInfo);
+          else matched.push(slotInfo);
+        }
+      })
+    })});
+    let icon=p.type==='avoid'?'🔴':'🟢',typeName=p.type==='avoid'?'避让':'偏好';
+    let hardLabel=p.hard?'<span class="badge badge-hard">硬约束</span>':'<span class="badge badge-soft">软约束</span>';
+    html+=`<div style="margin:4px 0;font-size:11px"><b>${icon} ${typeName} "${p.reason||p.day+'第'+p.beg+'-'+(p.beg+p.last-1)+'节'}"</b> ${hardLabel}</div>`;
+    if(p.type==='avoid'){
+      if(conflicted.length){
+        html+=`<div style="color:var(--red);font-size:10px;margin-left:16px">⚠️ 违反：有${conflicted.length}门课在此时间段<br>${conflicted.slice(0,5).map(m=>'&nbsp;&nbsp;• '+m).join('<br>')}${conflicted.length>5?'<br>&nbsp;&nbsp;...还有'+(conflicted.length-5)+'门':''}</div>`;
+        html+=`<div style="color:var(--muted);font-size:10px;margin-left:16px">原因：已安排的课程占用了此时间段${p.hard?'，需要强制调整':'，建议手动调整'}</div>`;
+      }else{
+        html+=`<div style="color:var(--green);font-size:10px;margin-left:16px">✅ 已满足：该时段无课程安排</div>`;
+      }
+    }else{
+      if(matched.length){
+        html+=`<div style="color:var(--green);font-size:10px;margin-left:16px">✅ 已满足（${matched.length}门课）：<br>${matched.slice(0,3).map(m=>'&nbsp;&nbsp;• '+m).join('<br>')}${matched.length>3?'<br>&nbsp;&nbsp;...还有'+(matched.length-3)+'门':''}</div>`;
+      }else{
+        html+=`<div style="color:var(--gold);font-size:10px;margin-left:16px">⚠️ 未满足：没有课程安排在此偏好时间段</div>`;
+        html+=`<div style="color:var(--muted);font-size:10px;margin-left:16px">原因：当前方案中没有课程时间与该偏好匹配${p.hard?'，需要强制调整':'，建议调整课程安排'}</div>`;
+      }
+    }
+  });
+  return html;
+}
+
+// ===== 全面检查（recheckSchedule 增强版）=====
+function recheckSchedule(){
+  if(!M){document.getElementById('manual-msg').innerHTML='<span style="color:var(--red)">请先加载规划数据</span>';return}
+  let html='';
+  // 1. 时间冲突
+  let timeConflictCount=0;
+  M.forEach(sem=>{for(let i=0;i<sem.courses.length;i++)for(let j=i+1;j<sem.courses.length;j++){
+    let a=sem.courses[i],b=sem.courses[j];
+    if(a.timeslots&&b.timeslots)for(let sa of a.timeslots)for(let sb of b.timeslots)
+      if(sa.day===sb.day&&!(sa.beg+sa.last-1<sb.beg||sb.beg+sb.last-1<sa.beg))timeConflictCount++
+  }});
+  html+=timeConflictCount>0?`<span style="color:var(--red)">⚠️ 时间冲突：${timeConflictCount}对</span>`:'<span style="color:var(--green)">✅ 无时间冲突</span>';
+
+  // 2. 学分检查
+  let creditMsgs=[];
+  let total=M.reduce((a,s)=>a+s.credit,0),elective=M.reduce((a,s)=>a+s.courses.filter(c=>c.category==='专业选修课').reduce((x,c)=>x+c.credit,0),0);
+  if(total<globalConstraints.min_total)creditMsgs.push(`总学分不足(${total.toFixed(1)}<${globalConstraints.min_total})`);
+  if(total>globalConstraints.max_total)creditMsgs.push(`总学分超限(${total.toFixed(1)}>${globalConstraints.max_total})`);
+  if(elective<globalConstraints.min_elective)creditMsgs.push(`选修不足(${elective.toFixed(1)}<${globalConstraints.min_elective})`);
+  M.forEach(s=>{if(s.credit<s.min_credit)creditMsgs.push(`第${s.term}学期不足(${s.credit.toFixed(1)}<${s.min_credit})`);if(s.credit>s.max_credit)creditMsgs.push(`第${s.term}学期超限(${s.credit.toFixed(1)}>${s.max_credit})`)});
+  if(creditMsgs.length)html+=`<br><span style="color:var(--red)">⚠️ 学分违规：${creditMsgs.join('、')}</span>`;
+  else html+=`<br><span style="color:var(--green)">✅ 所有学分约束已满足（总计${total.toFixed(1)}分，选修${elective.toFixed(1)}分）</span>`;
+
+  // 3. 先修关系
+  let prereqVios=checkPrerequisites();
+  if(prereqVios.length)html+=`<br><span style="color:var(--red)">⚠️ 先修关系违规：${prereqVios.length}处<br>${prereqVios.slice(0,5).map(v=>'&nbsp;&nbsp;• '+v).join('<br>')}${prereqVios.length>5?'<br>&nbsp;&nbsp;...还有'+(prereqVios.length-5)+'处':''}</span>`;
+  else html+=`<br><span style="color:var(--green)">✅ 先修关系全部满足</span>`;
+
+  // 4. 偏好满足度
+  let prefReport=checkPreferencesDetailed();
+  if(prefReport)html+=`<br><hr style="margin:4px 0;border-color:var(--line)"><b>📋 偏好满足度：</b><br>${prefReport}`;
+  else html+=`<br><span style="color:var(--muted)">📋 未配置时间偏好</span>`;
+
+  document.getElementById('manual-msg').innerHTML=html;
+  // 同时更新偏好面板
+  document.getElementById('pref-status-panel').innerHTML=prefReport||'<span class="section-note">未配置时间偏好，或点击"全面检查"查看</span>';
+  checkGlobalConstraints();renderScheduleGlobalAlert();
+}
+
+// ===== 课程操作 =====
 function refreshManualCourseList(){document.getElementById('manual-course').innerHTML='<option value="">-- 选择课程 --</option>'+C.map(c=>`<option value="${c.id}">${c.name}(${c.credit}分,${c.semester})</option>`).join('')}
 
+function manualAddCourse(){
+  let cid=document.getElementById('manual-course').value,term=parseInt(document.getElementById('manual-term').value);
+  if(!cid||!M){document.getElementById('manual-msg').innerHTML='<span style="color:var(--red)">请先加载数据并选择课程</span>';return}
+  let course=C.find(c=>c.id===cid);if(!course)return;
+  let s=term%2===1?'秋季学期':'春季学期';
+  if(course.semester!==s){document.getElementById('manual-msg').innerHTML=`<span style="color:var(--red)">${course.name}是${course.semester}课程，不能安排到${s}</span>`;return}
+  if(M.some(s=>s.courses.some(c=>c.id===cid))){document.getElementById('manual-msg').innerHTML=`<span style="color:var(--gold)">⚠️ ${course.name}已在课表中</span>`;return}
+  let sem=M.find(s=>s.term===term);
+  // 先修检查
+  if(course.prereq_ids&&course.prereq_ids.length){
+    let unscheduled=[],tooLate=[];
+    course.prereq_ids.forEach(pid=>{
+      let found=false;
+      M.forEach(s2=>{s2.courses.forEach(c2=>{if(c2.id===pid){found=true;if(s2.term>=term)tooLate.push(pid+'在第'+s2.term+'学期')}})});
+      if(!found)unscheduled.push(pid);
+    });
+    if(unscheduled.length||tooLate.length){
+      let warn='⚠️ 先修关系警告：';
+      if(unscheduled.length)warn+='\n未安排先修课：'+unscheduled.join(',');
+      if(tooLate.length)warn+='\n先修课不在前置学期：'+tooLate.join(',');
+      document.getElementById('manual-msg').innerHTML=`<span style="color:var(--red)">${warn.replace(/\n/g,'<br>')}</span>`;
+      if(!confirm(`${warn}\n\n确定仍要添加？`))return;
+    }
+  }
+  // 学分检查
+  let alertHtml='';
+  if(sem.credit+course.credit>sem.max_credit+0.001){
+    alertHtml+=`⚠️ <b>学分超限</b>：当前${sem.credit.toFixed(1)}+${course.credit}=${(sem.credit+course.credit).toFixed(1)} > 上限${sem.max_credit} `;
+    if(!confirm(`⚠️ 学分超限！\n当前第${term}学期：${sem.credit.toFixed(1)}学分\n添加${course.name}(${course.credit}分)后=${(sem.credit+course.credit).toFixed(1)}分\n上限：${sem.max_credit}分\n\n确定仍要添加？`))return;
+  }
+  if(!course.offerings||!course.offerings.length){document.getElementById('manual-msg').innerHTML='<span style="color:var(--red)">该课程无可用教学班</span>';return}
+  sem.courses.push({id:course.id,sp_id:course.offerings[0].sp_id,name:course.name,category:course.category,credit:course.credit,teacher:course.offerings[0].teacher,classroom:course.offerings[0].classroom,timeslots:course.offerings[0].timeslots});
+  sem.credit+=course.credit;
+  renderInteractiveSchedule();renderCreditChart();renderHeatmaps();
+  document.getElementById('manual-msg').innerHTML=alertHtml+`<span style="color:var(--green)">✅ 已添加 ${course.name}（${course.credit}分）→ 第${term}学期</span>`;
+  // 添加后自动全面检查
+  setTimeout(()=>{recheckSchedule();checkGlobalConstraints();renderScheduleGlobalAlert()},100);
+}
+
+// ===== 学分编辑 =====
+function changeMaxCredit(t,v){
+  if(!M)return;let sem=M.find(s=>s.term===t);if(!sem)return;
+  sem.max_credit=Math.max(0,parseFloat(v)||40);sem._customMax=true;
+  renderInteractiveSchedule();renderCreditChart();
+  checkGlobalConstraints();renderScheduleGlobalAlert();
+  let over=[];M.forEach(s=>{if(s.credit>s.max_credit)over.push(s.term)});
+  if(over.length)document.getElementById('manual-msg').innerHTML=`<span style="color:var(--red)">⚠️ 第${over.join('、')}学期超出学分上限！请调整课程或上限值</span>`;
+}
+function changeMinCredit(t,v){
+  if(!M)return;let sem=M.find(s=>s.term===t);if(!sem)return;
+  sem.min_credit=Math.max(0,parseFloat(v)||0);sem._customMin=true;
+  renderInteractiveSchedule();renderCreditChart();
+  checkGlobalConstraints();renderScheduleGlobalAlert();
+  let under=[];M.forEach(s=>{if(s.credit<s.min_credit)under.push(s.term)});
+  if(under.length)document.getElementById('manual-msg').innerHTML=`<span style="color:var(--red)">⚠️ 第${under.join('、')}学期低于学分下限！请添加课程或调整下限值</span>`;
+}
+
+// ===== 时间偏好管理 =====
+function addTimePreference(){
+  let d=document.getElementById('pref-day').value,b=parseInt(document.getElementById('pref-beg').value),
+      l=parseInt(document.getElementById('pref-last').value),tp=document.getElementById('pref-type').value,
+      hd=document.getElementById('pref-hard').value==='hard',rs=document.getElementById('pref-reason').value||'';
+  // 冲突检查：同一时段不能同时有prefer和avoid
+  let conflict=prefList.find(p=>p.day===d&&p.beg===b&&p.last===l&&p.type!==tp);
+  if(conflict){alert('⚠️ 该时段已存在相反的偏好设置（'+(conflict.type==='avoid'?'避让':'偏好')+'），请先删除后再添加');return}
+  prefList.push({day:d,beg:b,last:l,type:tp,hard:hd,reason:rs});
+  document.getElementById('pref-reason').value='';renderPrefList();savePrefsToLocal();
+  document.getElementById('pref-status').textContent=`已添加 ${prefList.length} 条偏好`;
+  // 自动重新检查并刷新面板
+  if(M)setTimeout(()=>{recheckSchedule();checkGlobalConstraints();renderDashboard()},100);
+}
+function removePref(idx){prefList.splice(idx,1);renderPrefList();savePrefsToLocal();if(M)setTimeout(()=>{recheckSchedule();renderDashboard()},100)}
+function renderPrefList(){
+  let pl=document.getElementById('pref-list');
+  pl.innerHTML=prefList.length===0?'<span style="color:var(--muted)">暂无自定义偏好，使用系统默认</span>':
+    prefList.map((p,i)=>`<span style="margin:2px 4px;display:inline-block;background:${p.type==='avoid'?'#fce8e8':'#e8f4e8'};border:1px solid ${p.type==='avoid'?'#a24f4a':'#4d7c3f'};border-radius:4px;padding:1px 6px;font-size:10px">${p.type==='avoid'?'🔴避开':'🟢偏好'} ${p.day} ${p.beg}-${p.beg+p.last-1}节 ${p.hard?'<span class="badge badge-hard">硬</span>':'<span class="badge badge-soft">软</span>'} ${p.reason} <span onclick="removePref(${i})" style="cursor:pointer;color:var(--red);font-weight:bold" title="删除此偏好">✕</span></span>`).join(' ');
+}
+function savePrefsToLocal(){localStorage.setItem('custom_prefs',JSON.stringify(prefList))}
+function loadPrefsFromLocal(){let s=localStorage.getItem('custom_prefs');if(s){prefList=JSON.parse(s);renderPrefList()}}
+
+// ===== 依赖图 =====
 function renderDependencyGraph(){
   let cont=document.getElementById('chart-graph');if(!C.length){cont.innerHTML='<p style="color:var(--muted);text-align:center;padding:100px">请先导入课程数据</p>';return}
   let chart=GC('chart-graph'),rs=new Set(),ls=[];
   C.forEach(c=>{if(c.prereq_ids)c.prereq_ids.forEach(p=>{if(C.find(x=>x.id===p)){ls.push({source:p,target:c.id});rs.add(p);rs.add(c.id)}})});
-  // 为每个节点建立查找表
   let cMap={};C.forEach(c=>cMap[c.id]=c);
   let scheduledIds=new Set();if(S)S.semesters.forEach(s=>s.courses?.forEach(c=>scheduledIds.add(c.id)));
-let nodes=[...rs].slice(0,300).map(id=>{let c=C.find(x=>x.id===id)||{},cl='#b07a20';if(c.category==='专业必修课')cl='#a24f4a';else if(c.category==='专业选修课')cl='#4d7c3f';return{id,symbolSize:12,name:c.name?.substring(0,12)||id,itemStyle:{color:cl},category:c.category||'学科基础课',course:c}});
-  let catColors={'专业必修课':'#a24f4a','学科基础课':'#b07a20','专业选修课':'#4d7c3f'};
+  let nodes=[...rs].slice(0,300).map(id=>{let c=C.find(x=>x.id===id)||{},cl='#b07a20';if(c.category==='专业必修课')cl='#a24f4a';else if(c.category==='专业选修课')cl='#4d7c3f';return{id,symbolSize:12,name:c.name?.substring(0,12)||id,itemStyle:{color:cl},category:c.category||'学科基础课',course:c}});
   chart.setOption({
     tooltip:{formatter:p=>{let c=p.data.course;if(!c)return p.data.name;let sc=scheduledIds.has(p.data.id)?'✅已安排':'⬜未安排';return`<b>${c.name||p.data.name}</b><br>院系:${c.department||''}<br>学分:${c.credit||''}<br>类别:${c.category||''}<br>状态:${sc}${c.prereq_ids?.length?'<br>先修:'+c.prereq_ids.join(', '):''}`},backgroundColor:'rgba(255,255,255,0.95)',borderColor:'#d8d4ca',textStyle:{color:'#1d2329',fontSize:12}},
     legend:{data:[{name:'专业必修课',itemStyle:{color:'#a24f4a'}},{name:'学科基础课',itemStyle:{color:'#b07a20'}},{name:'专业选修课',itemStyle:{color:'#4d7c3f'}}],orient:'vertical',left:10,top:20,textStyle:{fontSize:11}},
@@ -212,16 +696,89 @@ let nodes=[...rs].slice(0,300).map(id=>{let c=C.find(x=>x.id===id)||{},cl='#b07a
   })
 }
 
-function populateFilters(){document.getElementById('f-dept').innerHTML='<option value="">全部院系</option>'+[...new Set(C.map(c=>c.department))].sort().map(d=>`<option>${d}</option>`).join('');let st=document.getElementById('f-term');st.innerHTML='<option value="0">全部</option>';for(let t=1;t<=8;t++)st.innerHTML+=`<option value="${t}">第${t}学期</option>`}
-function applyFilter(){let cat=document.getElementById('f-cat').value,sem=document.getElementById('f-sem').value,term=parseInt(document.getElementById('f-term').value)||0,dept=document.getElementById('f-dept').value,cmin=parseFloat(document.getElementById('f-cmin').value)||0,cmax=parseFloat(document.getElementById('f-cmax').value)||999,teacher=document.getElementById('f-teacher').value.toLowerCase(),name=document.getElementById('f-name').value.toLowerCase();F=C.filter(c=>{if(cat&&c.category!==cat)return false;if(sem&&c.semester!==sem)return false;if(term>0&&c.recommended_term!==term)return false;if(dept&&c.department!==dept)return false;if(c.credit<cmin||c.credit>cmax)return false;if(teacher&&!c.offerings?.some(o=>o.teacher.toLowerCase().includes(teacher)))return false;if(name&&!c.name.toLowerCase().includes(name))return false;return true});renderCourseTable()}
-function resetFilter(){document.querySelectorAll('#tab-courses .filter-bar select,#tab-courses .filter-bar input').forEach(el=>{if(el.tagName==='SELECT')el.selectedIndex=0;else el.value=''});F=[...C];renderCourseTable()}
-function renderCourseTable(){let tb=document.querySelector('#course-table tbody'),sl=F.slice(0,500);tb.innerHTML=sl.map(c=>`<tr><td>${c.id}</td><td>${c.name}</td><td>${c.department}</td><td>${c.semester}</td><td>${c.recommended_term}</td><td>${c.category}</td><td>${c.credit}</td><td>${(c.offerings||[]).map(o=>o.teacher).join(',')}</td><td><button class="btn-primary" onclick="quickAdd('${c.id}')" style="font-size:10px;padding:2px 5px">加</button></td></tr>`).join('');document.getElementById('filter-count').textContent=`${sl.length}/${F.length}门`}
+// ===== 筛选 =====
+function populateFilters(){
+  document.getElementById('f-dept').innerHTML='<option value="">全部院系</option>'+[...new Set(C.map(c=>c.department))].sort().map(d=>`<option>${d}</option>`).join('');
+  let st=document.getElementById('f-term');st.innerHTML='<option value="0">全部</option>';for(let t=1;t<=8;t++)st.innerHTML+=`<option value="${t}">第${t}学期</option>`
+}
+function applyFilter(){
+  let cat=document.getElementById('f-cat').value,sem=document.getElementById('f-sem').value,term=parseInt(document.getElementById('f-term').value)||0,dept=document.getElementById('f-dept').value,cmin=parseFloat(document.getElementById('f-cmin').value)||0,cmax=parseFloat(document.getElementById('f-cmax').value)||999,teacher=document.getElementById('f-teacher').value.toLowerCase(),name=document.getElementById('f-name').value.toLowerCase();
+  F=C.filter(c=>{
+    if(cat&&c.category!==cat)return false;if(sem&&c.semester!==sem)return false;if(term>0&&c.recommended_term!==term)return false;if(dept&&c.department!==dept)return false;if(c.credit<cmin||c.credit>cmax)return false;if(teacher&&!c.offerings?.some(o=>o.teacher.toLowerCase().includes(teacher)))return false;if(name&&!c.name.toLowerCase().includes(name))return false;return true
+  });renderCourseTable()
+}
+function resetFilter(){
+  document.querySelectorAll('#tab-courses .filter-bar select,#tab-courses .filter-bar input').forEach(el=>{if(el.tagName==='SELECT')el.selectedIndex=0;else el.value=''});F=[...C];renderCourseTable()
+}
+function renderCourseTable(){
+  let tb=document.querySelector('#course-table tbody'),sl=F.slice(0,500);
+  tb.innerHTML=sl.map(c=>`<tr><td>${c.id}</td><td>${c.name}</td><td>${c.department}</td><td>${c.semester}</td><td>${c.recommended_term}</td><td>${c.category}</td><td>${c.credit}</td><td>${(c.offerings||[]).map(o=>o.teacher).join(',')}</td><td><button class="btn-primary" onclick="quickAdd('${c.id}')" style="font-size:10px;padding:2px 5px">加</button></td></tr>`).join('');
+  document.getElementById('filter-count').textContent=`${sl.length}/${F.length}门`
+}
 function quickAdd(id){window._pendingQuickAdd=id;switchTab('schedule');setTimeout(()=>{if(window._pendingQuickAdd){document.getElementById('manual-course').value=window._pendingQuickAdd;window._pendingQuickAdd=null}},200)}
-function exportCSV(){if(!C.length)return;let csv='课程ID,课程名称,院系,季节,推荐学期,类别,学分,教师,教室\n';F.slice(0,1000).forEach(c=>{csv+=`${c.id},"${c.name}","${c.department}","${c.semester}",${c.recommended_term},"${c.category}",${c.credit},"${(c.offerings||[]).map(o=>o.teacher).join(';')}","${(c.offerings||[]).map(o=>o.classroom).join(';')}"\n`});downloadFile('course_export.csv',csv)}
+function exportCSV(){
+  if(!C.length)return;let csv='课程ID,课程名称,院系,季节,推荐学期,类别,学分,教师,教室\n';
+  F.slice(0,1000).forEach(c=>{csv+=`${c.id},"${c.name}","${c.department}","${c.semester}",${c.recommended_term},"${c.category}",${c.credit},"${(c.offerings||[]).map(o=>o.teacher).join(';')}","${(c.offerings||[]).map(o=>o.classroom).join(';')}"\n`});downloadFile('course_export.csv',csv)
+}
 function exportJSON(){downloadFile('course_export.json',JSON.stringify({courses:F.slice(0,1000),schedule:S},null,2))}
 function downloadFile(n,c){let b=new Blob(['\uFEFF'+c],{type:'text/plain;charset=utf-8'});let a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=n;a.click()}
-function autoLoadCourseData(){fetch('data/course_dataset.json?'+Date.now()).then(r=>r.json()).then(d=>{C=d;F=[...C];populateFilters();renderCourseTable();refreshManualCourseList();renderDependencyGraph();renderHeatmaps()}).catch(()=>{})}
-document.addEventListener('DOMContentLoaded',()=>{loadScheduleData();autoLoadCourseData()})
+
+// ===== 互动课表渲染 =====
+function renderInteractiveSchedule(){
+  let g=document.getElementById('semester-grid'),sems=M||(S?S.semesters:[]);
+  if(!sems.length){g.innerHTML='<p style="color:var(--muted);grid-column:1/-1;text-align:center;padding:40px">请先加载规划数据</p>';return}
+  let html='';
+  for(let t=1;t<=8;t++){
+    let sem=sems.find(s=>s.term===t)||{credit:0,max_credit:globalConstraints.default_max,min_credit:globalConstraints.default_min,courses:[],blocked:false};
+    let overCredit=sem.credit>sem.max_credit,underCredit=sem.credit<sem.min_credit;
+    let cardClass='';
+    if(sem.blocked)cardClass=' blocked';
+    else if(overCredit)cardClass=' over-credit';
+    else if(underCredit)cardClass=' under-credit';
+    let creditStyle='';
+    if(overCredit)creditStyle=' style="color:var(--red);font-weight:bold"';
+    else if(underCredit)creditStyle=' style="color:var(--gold);font-weight:bold"';
+    let statusIcon='';
+    if(overCredit)statusIcon=' ⚠️超限';
+    else if(underCredit)statusIcon=' ⚠️不足';
+    html+=`<div class="semester-card${cardClass}">
+      <div class="t-title">第${t}学期 ${sem.blocked?'🚫':''}<span style="color:var(--muted);font-size:10px">${sem.courses.length}门</span></div>
+      <div class="t-credit">
+        下限:<input type="number" value="${sem.min_credit}" onchange="changeMinCredit(${t},this.value)" style="width:36px;height:19px;font-size:10px;border:1px solid var(--line);border-radius:4px;text-align:center;margin-right:4px">
+        学分:<span${creditStyle}>${sem.credit.toFixed(1)}</span>/
+        <input type="number" value="${sem.max_credit}" onchange="changeMaxCredit(${t},this.value)" style="width:36px;height:19px;font-size:10px;border:1px solid var(--line);border-radius:4px;text-align:center">${statusIcon}
+      </div>`;
+    // 标记偏好匹配的课程
+    sem.courses.forEach((c,idx)=>{
+      let cat=c.category==='专业必修课'?'cat-required':(c.category==='学科基础课'?'cat-foundation':'cat-elective');
+      let prefClass='';
+      if(prefList.length&&c.timeslots){
+        c.timeslots.forEach(ts=>{
+          prefList.forEach(p=>{
+            if(ts.day===p.day&&!(ts.beg+ts.last-1<p.beg||p.beg+p.last-1<ts.beg)){
+              if(p.type==='avoid')prefClass=' pref-conflict';
+              else if(!prefClass)prefClass=' pref-match';
+            }
+          });
+        });
+      }
+      html+=`<div class="course-item${prefClass}" title="${c.name}(${c.id})&#10;教师:${c.teacher} ${c.classroom}">
+        <span class="c-name ${cat}">${c.name}</span>
+        <span style="color:var(--teal);font-weight:700;font-size:9px">${c.credit}分</span>
+        <span class="c-remove" onclick="removeCourse(${t},${idx})">✕</span></div>`;
+    });
+    html+='</div>';
+  }
+  g.innerHTML=html;recalcCredits();
+}
+
+function autoLoadCourseData(){
+  fetch('data/course_dataset.json?'+Date.now()).then(r=>r.json()).then(d=>{C=d;F=[...C];populateFilters();renderCourseTable();refreshManualCourseList();renderDependencyGraph();renderHeatmaps()}).catch(()=>{})
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  loadScheduleData();autoLoadCourseData();loadPrefsFromLocal();
+  syncGlobalConstraintsUI();
+})
 </script>
 </body>
 </html>
