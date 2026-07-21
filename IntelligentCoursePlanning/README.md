@@ -174,4 +174,4 @@ Phase 5: 生成可解释的规划摘要
 - [数据说明](data/README.md)
 - [AI 选课建议 SKILL 定义](docs/AI_SKILL.md)
 - [实验报告](docs/实验报告.md)
-- [NOTE-本人的随记笔记：能学到新东西](docs/_notes/NOTE.md)
+- [NOTE-我们两人的随记笔记：能学到新东西](docs/_notes/NOTE.md)

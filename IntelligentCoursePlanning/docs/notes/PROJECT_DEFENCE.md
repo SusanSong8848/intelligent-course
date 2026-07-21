@@ -141,13 +141,82 @@ CSV 文件 → C++ 解析 → CourseDataset → Scheduler 调度 → ScheduleRes
 - **软约束评分**：`score = 偏好时段匹配数 - 避让时段命中数`，选得分最高的教学班
 - **负载均衡贪心**：选修课按"当前学分从低到高"的学期顺序分配
 
-### 5.3 时间复杂度
+### 5.3 规划结果的导入导出机制
+
+**核心思路**：C++ 后端负责计算，JSON 文件作为"中间桥梁"，前端负责展示和交互。
+
+**导出流程（C++ → JSON → 前端）**：
+
+```
+course_planner.exe
+  ↓ 运行 Scheduler.run()，生成 ScheduleResult
+  ↓ 调用 export_result_json() / export_dataset_json()
+  ↓ 写入 build/Release/data/schedule_result.json   ← 8 学期课表
+  ↓ 写入 build/Release/data/course_dataset.json     ← 1000 门课程元数据
+  ↓
+前端 index.html
+  ↓ fetch('data/schedule_result.json') → 渲染课表/学分/偏好报告
+  ↓ fetch('data/course_dataset.json') → 渲染课程列表/筛选/依赖图/热力图
+```
+
+**导入格式（schedule_result.json 结构）**：
+
+```json
+{
+  "success": true,
+  "summary": {"total_credit": 151.5, "elective_credit": 74.5, ...},
+  "semesters": [
+    {"term": 1, "credit": 39.5, "max_credit": 40, "blocked": false,
+     "courses": [
+       {"id": "COMS0031121013", "name": "数学分析I", "category": "学科基础课",
+        "credit": 5.0, "teacher": "谢悦楠", "classroom": "综合楼201",
+        "timeslots": [{"day":"Mon","beg":12,"last":2}, ...]}
+     ]},
+    ...
+  ],
+  "unassigned": [...],
+  "preference_reports": [{"term":1, "satisfied_preferred":1, "detail":"..."}, ...]
+}
+```
+
+**前端导出（用户主动操作）**：
+- **📤 导出CSV**：将筛选后的课程列表导出为 UTF-8 CSV 文件（含 BOM，Excel 可直接打开）
+- **📤 导出JSON**：将当前课表方案 + 筛选的课程数据打包为一个 JSON 文件
+- **📥 导入课程数据**：用户可通过文件选择器导入 `course_dataset.json`（支持手动加载其他专业数据）
+- **💾/📂 保存/加载方案**：利用浏览器 `localStorage` 存储当前选课方案，刷新页面后仍可恢复
+
+**关键设计决策**：
+- CSV 解析器内置 BOM 检测（UTF-8 BOM 头 `EF BB BF`），兼容 Windows 记事本保存的文件
+- JSON 导出使用内嵌的 `json_escape()` 函数处理特殊字符（双引号、反斜杠、换行等）
+- 所有文件路径通过 `get_exe_dir()` 自动定位，无需硬编码绝对路径
+
+### 5.4 时间复杂度
 
 O(N + E + T×C×O) → 1000 节点 664 边，8 学期，实测 < 0.5 秒
 
 ---
 
-## 六、测试结果
+## 六、测试数据来源与整理
+
+**测试用例覆盖**：框架运行 **5 个不同场景**，覆盖正常、边界和不可行用例。
+
+### 6.1 数据来源
+
+| 测试类型 | 专业 | 数据文件 | 必修课 | 说明 |
+|---------|------|---------|--------|------|
+| 正常样例 | 计算机科学与技术 | `data/major_profiles/computer_science.json` | 37 门 | 综合性最强，必修最多 |
+| 正常样例 | 软件工程 | `data/major_profiles/software_engineering.json` | 24 门 | 侧重软件设计/测试/工程实践 |
+| 正常样例 | 数据科学 | `data/major_profiles/data_science.json` | 22 门 | 侧重数据库/大数据/统计建模 |
+| 边界样例 | 计算机（学分上限 15） | `data/sample_constraints.json`（动态修改） | 22 门 | 验证低学分上限下必修课仍能全覆盖 |
+| 不可行样例 | 计算机（学分上限 5） | `data/sample_constraints.json`（动态修改） | 22 门 | 验证系统正确报告不可行原因 |
+
+**整理方式**：
+- 所有专业的培养方案 JSON 文件位于 `data/major_profiles/`（共 12 个专业：计算机科学、软件工程、数据科学、人工智能、数学教育、汉语言文学、历史学、心理学、小学教育、学前教育、英语教育、美术教育）
+- 每个 JSON 文件包含 `required_course_basic_IDs`（必修课集合）、`elective_candidate_course_basic_IDs`（选修候选池）、`min_total_credit`、`required_credit` 等字段
+- 边界和不可行样例通过代码动态加载 `sample_constraints.json`，然后修改 `max_credit_per_semester` 实现
+- 所有约束文件共享同一份课程数据（`course_info.csv` + `course_time.csv`），保证测试基准一致
+
+### 6.2 测试结果
 
 | 测试用例 | 结果 | 总学分 | 冲突 |
 |---------|------|--------|------|
