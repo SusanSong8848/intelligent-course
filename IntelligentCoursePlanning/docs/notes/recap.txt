@@ -1,0 +1,48 @@
+course::
+CourseOffering(教学班（course_info.csv 中的一行记录）+ TimeSlotList(从 course_time.csv 加载))
+CourseBasic(该课程的所有基础信息，包括先修课程ID列表，该课程的所有教学班(是vector<CourseOffering> offerings))
+
+csv-loader::
+CourseDataset(所有的map[id, CourseBasic]集合 + 所有的vector<CourseOffering>集合)
+
+constraint::
+Constraint（所有的要求，必修选修 学分 喜欢/不想上课时间段(vector<TimeBlock>) 特殊限制学期set<int>......） 
+TimeBlock{day, beg, last, bool硬性/软性(必修/选修), string reason}
+
+util::{
+util::jion-parser::
+JsonValue({type_, value_}就是键值对的值，可以是任意类型（也可以是Object类型）)
+Object（键值对的map集合，也可以用来存储所有.jion整个内容：里面的键值对）（map<string(key), JsonValue>）
+	/*当type_ = OBJECT, value_ = Object时：     //（using Object = std::map<std::string, JsonValue>键值对）
+          就构成了键值对嵌套树状结构（JsonValue就是随便什么类型(value_)再加上它的类型是什么(type_)的说明）
+	eg. {  "total_credit_rule": {
+    "type": "required_plus_electives_reaches_min_total_credit",
+    "required_credit": 77.0,
+    "professional_elective_min_credit": 24,
+    "derived_min_elective_credit_for_total": 73.0,
+  },}*/
+
+}
+
+scheduler::
+1. ScheduleResult（排课结果，包含特别多课表信息：{课表，success，学分，不能安排的课程vector<UnassignedCourse> unassigned-courses（UnassignedCourse{id, name, reason}），各学期的冲突列表(vector<ConflictInfo{1id,2id,1name,2name,string detail}>)
+map<int, vector<ConflictInfo>> conflicts（ConflictInfo是两门课的id,name,冲突详情， 汇总信息sttring summary， map<int, PreferenceReport> semester_preferences; ///< 每学期的偏好报告}
+2. Scheduler {4个重要数据{CourseDataset&, Constraint&, PrerequisiteGraph, ConflictDetector} + 2个排课器的必用集合{已选set<string> scheduled-basic-ids_，未选set<string> pending-required-ids} + 1个诊断日志列表vector<string> diagnostics_}
+3. PreferenceReport 个性化时间安排 {总喜好数量，总回避数量，满足的喜好数量，满足的回避数量，double满足率，string detail文字说明}
+prerequisite-graph::
+PrerequisiteGraph {先map、后map、all_nodes__、cycle_nodes_环路（可检测）}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

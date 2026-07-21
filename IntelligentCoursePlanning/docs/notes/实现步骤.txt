@@ -1,0 +1,254 @@
+
+IntelligentCoursePlanning/
+├── CMakeLists.txt                    # 根CMake配置
+├── README.md                         # 项目说明
+├── data/                             # 🚫 不修改，原始数据
+│   ├── course_info.csv
+│   ├── course_time.csv
+│   ├── sample_constraints.json
+│   ├── major_profiles/
+│   └── ...
+├── docs/
+│   └── requirements/
+│       └── 智能课程规划系统.md
+├── src/                              # C++ 后端源码
+│   ├── main.cpp                      # 入口
+│   ├── server/                       # HTTP服务器（供前端调用）
+│   │   ├── http_server.h
+│   │   └── http_server.cpp
+│   ├── models/                       # 数据模型
+│   │   ├── course.h                  # 课程/教学班数据结构
+│   │   ├── time_slot.h              # 时间段数据结构
+│   │   ├── constraint.h             # 约束数据结构
+│   │   └── schedule.h              # 八学期课表
+│   ├── data/                         # 数据加载与管理
+│   │   ├── csv_loader.h
+│   │   ├── csv_loader.cpp
+│   │   ├── json_loader.h
+│   │   └── json_loader.cpp
+│   ├── core/                         # 核心算法
+│   │   ├── prerequisite_graph.h     # 先修关系图（邻接表）
+│   │   ├── prerequisite_graph.cpp
+│   │   ├── conflict_detector.h      # 时间冲突检测
+│   │   ├── conflict_detector.cpp
+│   │   ├── scheduler.h             # 主调度器（拓扑+贪心）
+│   │   ├── scheduler.cpp
+│   │   ├── credit_checker.h        # 学分检查
+│   │   └── credit_checker.cpp
+│   └── utils/
+│       ├── string_utils.h
+│       └── string_utils.cpp
+├── frontend/                         # 前端文件
+│   ├── index.html                    # 主页面
+│   ├── css/
+│   │   └── style.css
+│   ├── js/
+│   │   ├── app.js                    # 主逻辑
+│   │   ├── data-loader.js           # 数据加载（CSV解析、API调用）
+│   │   ├── filter.js                # 筛选功能
+│   │   ├── visualization.js         # 可视化（课表、依赖图）
+│   │   └── exporter.js             # 导出功能
+│   └── assets/
+└── report/                           # 实验报告相关
+    └── 实验报告.md
+
+
+
+## 三、详细步骤（按顺序执行）
+
+### 阶段一：项目搭建与数据加载（预计工作量：20%）
+
+__Step 1. 创建CMake项目骨架__
+
+- 创建 `CMakeLists.txt`，配置 C++17 标准
+- 添加 nlohmann/json 库（用于JSON解析，header-only）
+- 添加 SQLite3 支持（或直接内存结构，如果用内存结构则不需要）
+- 建立 `src/` 下各子目录和空 `.h/.cpp` 文件
+- 编写 `main.cpp` 入口，验证编译通过
+
+__Step 2. 设计核心数据结构__
+
+- `TimeSlot`：day(Mon~Sun), beg(1-13), last(1-13)
+- `CourseOffering`（教学班）：course_basic_ID, course_sp_ID, course_name, department, semester, recommended_term, category, credit, beg_week, last_week, teacher, classroom, limits, prereq_ID, vector<TimeSlot>
+- `CourseBasic`（课程基础）：course_basic_ID, course_name, department, semester, category, credit, recommended_term, prereq_IDs, vector<CourseOffering>（该课程的所有教学班）
+- `Constraint`：目标课程集合、每学期学分上限、总学分下限、选修学分要求、避让时间段、偏好时间段、特殊学期限制
+
+__Step 3. 实现CSV数据加载器__
+
+- 解析 `course_info.csv`（3001行），构建 `vector<CourseBasic>` 和 `vector<CourseOffering>`
+- 解析 `course_time.csv`（4564行），为每个教学班填充 TimeSlot 列表
+- 处理编码（UTF-8 with BOM）、引号转义等边界情况
+
+__Step 4. 实现JSON约束加载器__
+
+- 使用 nlohmann/json 解析 `sample_constraints.json` 和 `major_profiles/*.json`
+- 构建 `Constraint` 对象
+
+### 阶段二：核心规划算法（预计工作量：35%）
+
+__Step 5. 构建先修关系图（10分关键项）__
+
+- 使用邻接表表示有向图
+- 每个 `course_basic_ID` 作为节点
+- 实现 `addEdge(prereq_ID → course_ID)`
+- 实现 Kahn拓扑排序算法
+- 检测环路（有环时报告具体哪些课程形成环）
+- 检测缺失先修课程（prereq_ID不在数据集中）
+- 为未安排课程提供无法满足的原因
+
+__Step 6. 实现时间冲突检测（10分关键项）__
+
+- 将时间段表示为 `(week_range, day, beg, beg+last-1)` 的区间
+- 冲突条件：两门课 day相同 && 节次区间重叠 && 周次区间重叠
+- 一门课可能有多个TimeSlot，所有时间段都要参与检查
+- 实现 `bool hasConflict(const CourseOffering& a, const CourseOffering& b)`
+- 实现 `vector<Conflict> checkSemesterConflicts(const vector<CourseOffering>& semester)`
+- 冲突时输出详细的冲突信息（哪两门课、在什么时间段冲突）
+
+__Step 7. 实现主调度器（40分核心）__
+
+- 算法设计：__拓扑排序 + 按学期贪心分配 + 回溯__
+
+  - Phase 1：对必修课和学科基础课进行拓扑排序，得到可行的修读顺序
+  - Phase 2：按学期迭代（1→8），对于当前学期： a. 筛选出先修已满足、且推荐学期 ≤ 当前学期的课程 b. 对候选课程按优先级排序（先修链长度长优先、学分高优先） c. 贪心选课：检查时间冲突、学分上限，逐个加入 d. 如果教学班冲突，尝试同课程的其他教学班 e. 记录无法安排的课程及原因
+  - Phase 3：补足选修学分 a. 从选修候选池中选择课程 b. 按先修关系过滤、时间冲突检查、学分上限检查 c. 直到总选修学分 ≥ derived_min_elective_credit_for_total
+  - Phase 4：方案验证 a. 重新检查所有约束 b. 输出统计信息
+
+__Step 8. 实现学分检查（10分关键项）__
+
+- 每学期学分 ≤ max_credit_per_semester[term]
+- 总学分 ≥ min_total_credit
+- 必修/基础学分 = required_credit（所有required_course_basic_IDs的学分之和）
+- 选修学分 ≥ elective_min_credit
+- 若上限过低导致无解，输出具体原因（如"第2学期必修课学分已达X，超过上限Y"）
+
+### 阶段三：图形化前端（预计工作量：30%）
+
+__Step 9. 创建前端主页面结构__
+
+- `index.html`：采用左右布局
+
+  - 左侧：控制面板（约束配置、筛选条件、操作按钮）
+  - 右侧：Tab切换（课程列表 / 学期课表 / 依赖图 / 统计报告）
+
+- 引入 ECharts CDN 用于可视化
+
+__Step 10. 实现数据导入与展示（15分中的7分）__
+
+- 使用 FileReader API 在前端直接解析CSV文件（Papa Parse库）
+- 课程列表表格展示：可排序、可翻页
+- 显示课程基本信息（名称、院系、学分、类别、开课学期等）
+- 高亮显示必修课 vs 选修课
+
+__Step 11. 实现筛选功能（15分中的8分 + 10分全拿）__
+
+- 按学分范围筛选
+- 按课程类别筛选（专业必修课/学科基础课/专业选修课）
+- 按开课学期筛选（秋季学期/春季学期）
+- 按院系筛选
+- 按教师筛选
+- 按教室筛选
+- 按持续周数筛选
+- 组合筛选（AND逻辑）
+
+__Step 12. 实现规划调用与结果展示__
+
+- 前端发送约束配置到后端API（或通过JSON文件桥接）
+- 接收规划结果JSON
+- 八学期课表可视化：每个学期一个卡片，展示课程列表及学分小计
+- 颜色区分：必修课蓝色、基础课绿色、选修课橙色
+- 冲突课程红色标记
+
+__Step 13. 实现导出功能__
+
+- 导出为 CSV 格式
+- 导出为 JSON 格式
+- 导出为可打印的 HTML 课表
+
+__Step 14. 实现课程依赖图可视化__
+
+- 使用 ECharts 力导向图或层次图
+- 展示先修关系网络
+- 高亮已安排在方案中的课程路径
+
+### 阶段四：拓展功能（预计工作量：15%，拿10-20分）
+
+__Step 15. 前端功能完善（10分拓展）__
+
+- 手动选课：在课程列表中点击"加入第X学期"
+- 取消选课：在课表中点击删除按钮
+- 保存方案：将当前方案保存为JSON到localStorage
+- 清空方案：一键清除
+- 实时冲突检测：手动操作后自动重新检查冲突
+- 查看冲突原因弹窗
+
+__Step 16. 个性化时间安排（10分拓展）__
+
+- 读取 constraint 中的 `avoid_time_blocks` 和 `preferred_time_blocks`
+
+- 实现软约束打分机制：
+
+  - 满足偏好的课程 +1 分
+  - 包含避让时段的课程 -1 分
+  - 在贪心选课时优先选得分高的教学班
+
+- 在方案报告中标注哪些偏好被满足、哪些未满足及原因
+
+- 支持大三交换（5-6学期不排课）、大四实习（7-8学期不排课）
+
+### 阶段五：测试与调试（贯穿全过程）
+
+__Step 17. 测试用例设计__
+
+- 正常样例：computer_science 专业完整8学期规划
+- 边界样例：学分上限极低、课程数量极少
+- 不可行样例：先修链条缺失、学分上限无法满足必修课
+- 多专业测试：至少测试3个不同专业的规划
+
+__Step 18. 验证输出正确性__
+
+- 每学期无时间冲突
+- 所有先修关系满足
+- 学分统计准确
+- 必修课全部覆盖
+
+### 阶段六：实验报告（15分）
+
+__Step 19. 撰写实验报告__ 按需求文档要求的6个方面撰写：
+
+1. 项目目录结构、主要模块和运行方式
+2. 数据结构设计（附类图和结构说明）
+3. 规划算法思路（流程图 + 伪代码）
+4. 检查流程（冲突/先修/学分的检查逻辑）
+5. 测试结果（3类样例的截图和说明）
+6. 复杂度分析、局限性和改进方向
+
+
+
+
+
+那就是你们项目的图形化前端——一个可以直接在浏览器里打开的网页，用来：
+
+显示课程列表（课程浏览）
+
+展示规划结果（总学分、学期课表、未安排课程）
+
+绘制学分柱状图和课程依赖关系图（用 ECharts 库）
+
+这个 HTML 文件结构很清晰：
+
+<style> 里是布局和配色。
+
+<div class="header"> 是顶部导航，有四个标签页。
+
+每个标签页对应不同的功能块：规划总览、课程浏览、学期课表、依赖关系图。
+
+最下面的 <script> 是 JavaScript 逻辑，负责：
+
+从 data/schedule_result.json 加载规划结果（loadScheduleData()）
+
+让用户上传课程 JSON 文件来浏览（loadCourseData()）
+
+实现筛选、导出 CSV/JSON 等功能
+
+调用 ECharts 画图
