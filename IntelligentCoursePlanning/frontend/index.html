@@ -149,9 +149,27 @@ function renderHeatmaps(){
   setTimeout(()=>sems.forEach(sem=>{
     let c=echarts.init(document.getElementById('hm-'+sem.term));
     let mat=Array(7).fill().map(()=>Array(13).fill(0));let hd=[];
-    sem.courses?.forEach(co=>{if(co.timeslots)co.timeslots.forEach(ts=>{let di=dw.indexOf(ts.day);if(di>=0)for(let p=ts.beg-1;p<ts.beg+ts.last-1&&p<13;p++)mat[di][p]=1})});
+    let slotMap={};
+    sem.courses?.forEach(co=>{
+      let cColor='#a24f4a';
+      if(co.category==='学科基础课')cColor='#b07a20';
+      else if(co.category==='专业选修课')cColor='#4d7c3f';
+      if(co.timeslots)co.timeslots.forEach(ts=>{
+        let di=dw.indexOf(ts.day);if(di>=0)for(let p=ts.beg-1;p<ts.beg+ts.last-1&&p<13;p++){
+          mat[di][p]=1;let k=di+'_'+p;
+          if(!slotMap[k])slotMap[k]=[];
+          let dept=co.department||'';if(!dept){let cf=C.find(x=>x.id===co.id);if(cf)dept=cf.department||'';}
+          slotMap[k].push({name:co.name,credit:co.credit,teacher:co.teacher||'',dept:dept,cat:co.category,color:cColor,day:ts.day,beg:ts.beg,last:ts.last});
+        }
+      })});
     dw.forEach((d,di)=>{for(let p=0;p<13;p++)hd.push([p,6-di,mat[di][p]||0])});
-    c.setOption({tooltip:{formatter:p=>dw[6-p.value[1]]+' 第'+(p.value[0]+1)+'节: '+(p.value[2]?'有课':'空闲')},grid:{left:25,right:8,top:6,bottom:16},
+    c.setOption({tooltip:{formatter:p=>{
+      let k=(6-p.value[1])+'_'+p.value[0],slots=slotMap[k];
+      if(!slots||!slots.length)return dw[6-p.value[1]]+' 第'+(p.value[0]+1)+'节: 空闲';
+      let h='<b>'+dw[6-p.value[1]]+' 第'+(p.value[0]+1)+'节</b>';
+      slots.forEach(s=>{h+=`<br><span style="color:${s.color}">■</span> ${s.name}<br>  教师:${s.teacher} | 学分:${s.credit} | 院系:${s.dept}`});
+      return h;
+    }},grid:{left:25,right:8,top:6,bottom:16},
       xAxis:{type:'category',data:['1','2','3','4','5','6','7','8','9','10','11','12','13'],axisLabel:{fontSize:8}},
       yAxis:{type:'category',data:dl.reverse(),axisLabel:{fontSize:9}},
       visualMap:{min:0,max:1,show:false,inRange:{color:['#f3f0e8','#276b62']}},
