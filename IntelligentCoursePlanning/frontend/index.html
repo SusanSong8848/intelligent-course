@@ -148,32 +148,34 @@ function renderHeatmaps(){
   g.innerHTML=html;
   setTimeout(()=>sems.forEach(sem=>{
     let c=echarts.init(document.getElementById('hm-'+sem.term));
-    let mat=Array(7).fill().map(()=>Array(13).fill(0));let hd=[];
+    let mat=Array(7).fill().map(()=>Array(13).fill(null));let hd=[]; // null=无课, 颜色字符串=有课
     let slotMap={};
     sem.courses?.forEach(co=>{
-      let cColor='#a24f4a';
-      if(co.category==='学科基础课')cColor='#b07a20';
-      else if(co.category==='专业选修课')cColor='#4d7c3f';
+      let cColor='#a24f4a'; // 默认红色=专业必修
+      if(co.category==='学科基础课')cColor='#b07a20'; // 黄色=学科基础
+      else if(co.category==='专业选修课')cColor='#4d7c3f'; // 绿色=专业选修
+      let spId=co.sp_id||'',cid=co.id||'';
       if(co.timeslots)co.timeslots.forEach(ts=>{
         let di=dw.indexOf(ts.day);if(di>=0)for(let p=ts.beg-1;p<ts.beg+ts.last-1&&p<13;p++){
-          mat[di][p]=1;let k=di+'_'+p;
+          mat[di][p]=cColor;let k=di+'_'+p;
           if(!slotMap[k])slotMap[k]=[];
-          let dept=co.department||'';if(!dept){let cf=C.find(x=>x.id===co.id);if(cf)dept=cf.department||'';}
-          slotMap[k].push({name:co.name,credit:co.credit,teacher:co.teacher||'',dept:dept,cat:co.category,color:cColor,day:ts.day,beg:ts.beg,last:ts.last});
+          slotMap[k].push({name:co.name, credit:co.credit, teacher:co.teacher||'',
+            classroom:co.classroom||'', spId:spId, code:cid+'.'+spId,
+            cat:co.category, color:cColor, day:ts.day, beg:ts.beg, last:ts.last});
         }
       })});
-    dw.forEach((d,di)=>{for(let p=0;p<13;p++)hd.push([p,6-di,mat[di][p]||0])});
+    dw.forEach((d,di)=>{for(let p=0;p<13;p++)hd.push({value:[p,6-di,mat[di][p]?1:0],itemStyle:mat[di][p]?{color:mat[di][p]}:{}})});
     c.setOption({tooltip:{formatter:p=>{
       let k=(6-p.value[1])+'_'+p.value[0],slots=slotMap[k];
       if(!slots||!slots.length)return dw[6-p.value[1]]+' 第'+(p.value[0]+1)+'节: 空闲';
       let h='<b>'+dw[6-p.value[1]]+' 第'+(p.value[0]+1)+'节</b>';
-      slots.forEach(s=>{h+=`<br><span style="color:${s.color}">■</span> ${s.name}<br>  教师:${s.teacher} | 学分:${s.credit} | 院系:${s.dept}`});
+      slots.forEach(s=>{h+=`<br><span style="color:${s.color}">■</span> <b>${s.name}</b> (${s.code})<br>  ${s.day} 第${s.beg}-${s.beg+s.last-1}节 | 教师:${s.teacher} | 学分:${s.credit}<br>  教室:${s.classroom}`});
       return h;
-    }},grid:{left:25,right:8,top:6,bottom:16},
+    }},grid:{left:28,right:8,top:6,bottom:16},
       xAxis:{type:'category',data:['1','2','3','4','5','6','7','8','9','10','11','12','13'],axisLabel:{fontSize:8}},
       yAxis:{type:'category',data:dl.reverse(),axisLabel:{fontSize:9}},
-      visualMap:{min:0,max:1,show:false,inRange:{color:['#f3f0e8','#276b62']}},
-      series:[{type:'heatmap',data:hd,label:{show:true,fontSize:7,formatter:p=>p.value[2]?'■':''}}]})
+      visualMap:{min:0,max:1,show:false},
+      series:[{type:'heatmap',data:hd,label:{show:true,fontSize:8,formatter:p=>p.value[2]?'■':''}}]})
   }),150)
 }
 
@@ -214,7 +216,7 @@ function populateFilters(){document.getElementById('f-dept').innerHTML='<option 
 function applyFilter(){let cat=document.getElementById('f-cat').value,sem=document.getElementById('f-sem').value,term=parseInt(document.getElementById('f-term').value)||0,dept=document.getElementById('f-dept').value,cmin=parseFloat(document.getElementById('f-cmin').value)||0,cmax=parseFloat(document.getElementById('f-cmax').value)||999,teacher=document.getElementById('f-teacher').value.toLowerCase(),name=document.getElementById('f-name').value.toLowerCase();F=C.filter(c=>{if(cat&&c.category!==cat)return false;if(sem&&c.semester!==sem)return false;if(term>0&&c.recommended_term!==term)return false;if(dept&&c.department!==dept)return false;if(c.credit<cmin||c.credit>cmax)return false;if(teacher&&!c.offerings?.some(o=>o.teacher.toLowerCase().includes(teacher)))return false;if(name&&!c.name.toLowerCase().includes(name))return false;return true});renderCourseTable()}
 function resetFilter(){document.querySelectorAll('#tab-courses .filter-bar select,#tab-courses .filter-bar input').forEach(el=>{if(el.tagName==='SELECT')el.selectedIndex=0;else el.value=''});F=[...C];renderCourseTable()}
 function renderCourseTable(){let tb=document.querySelector('#course-table tbody'),sl=F.slice(0,500);tb.innerHTML=sl.map(c=>`<tr><td>${c.id}</td><td>${c.name}</td><td>${c.department}</td><td>${c.semester}</td><td>${c.recommended_term}</td><td>${c.category}</td><td>${c.credit}</td><td>${(c.offerings||[]).map(o=>o.teacher).join(',')}</td><td><button class="btn-primary" onclick="quickAdd('${c.id}')" style="font-size:10px;padding:2px 5px">加</button></td></tr>`).join('');document.getElementById('filter-count').textContent=`${sl.length}/${F.length}门`}
-function quickAdd(id){document.getElementById('manual-course').value=id;switchTab('schedule')}
+function quickAdd(id){window._pendingQuickAdd=id;switchTab('schedule');setTimeout(()=>{if(window._pendingQuickAdd){document.getElementById('manual-course').value=window._pendingQuickAdd;window._pendingQuickAdd=null}},200)}
 function exportCSV(){if(!C.length)return;let csv='课程ID,课程名称,院系,季节,推荐学期,类别,学分,教师,教室\n';F.slice(0,1000).forEach(c=>{csv+=`${c.id},"${c.name}","${c.department}","${c.semester}",${c.recommended_term},"${c.category}",${c.credit},"${(c.offerings||[]).map(o=>o.teacher).join(';')}","${(c.offerings||[]).map(o=>o.classroom).join(';')}"\n`});downloadFile('course_export.csv',csv)}
 function exportJSON(){downloadFile('course_export.json',JSON.stringify({courses:F.slice(0,1000),schedule:S},null,2))}
 function downloadFile(n,c){let b=new Blob(['\uFEFF'+c],{type:'text/plain;charset=utf-8'});let a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=n;a.click()}
