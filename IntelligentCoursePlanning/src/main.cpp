@@ -493,8 +493,17 @@ int main() {
         // ========== 阶段五：自动化测试 ==========
         run_all_tests(dataset);
 
-        // Step 4: 导出 JSON 文件供前端使用（最后一次规划结果）
-        std::cout << "\n[4/4] 导出课程数据..." << std::endl;
+        // Step 4: 用原始约束重新导出 JSON（前端需要，覆盖测试产生的最后一份JSON）
+        std::cout << "\n[4/4] 导出规划结果 + 课程数据..." << std::endl;
+        {
+            Constraint export_constraint = load_constraints_from_json(data_path("sample_constraints.json"));
+            Scheduler export_scheduler(dataset, export_constraint);
+            ScheduleResult export_result = export_scheduler.run();
+            std::string result_path = get_exe_dir() + "/data/schedule_result.json";
+            if (export_result_json(export_result, export_constraint, dataset, result_path)) {
+                std::cout << "  ✅ 规划结果已导出: " << result_path << std::endl;
+            }
+        }
         std::string exe_dir = get_exe_dir();
         std::string dataset_path = exe_dir + "/data/course_dataset.json";
         if (export_dataset_json(dataset, dataset_path)) {
