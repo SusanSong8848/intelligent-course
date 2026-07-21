@@ -198,15 +198,15 @@ function renderDependencyGraph(){
   // 为每个节点建立查找表
   let cMap={};C.forEach(c=>cMap[c.id]=c);
   let scheduledIds=new Set();if(S)S.semesters.forEach(s=>s.courses?.forEach(c=>scheduledIds.add(c.id)));
-  let nodes=[...rs].slice(0,300).map(id=>{let c=C.find(x=>x.id===id)||{},cl='#4d7c3f';if(c.category==='专业必修课')cl='#a24f4a';else if(c.category==='专业选修课')cl='#b07a20';return{id,symbolSize:12,name:c.name?.substring(0,12)||id,itemStyle:{color:cl},category:c.category||'学科基础课',course:c}});
-  let catColors={'专业必修课':'#a24f4a','学科基础课':'#4d7c3f','专业选修课':'#b07a20'};
+let nodes=[...rs].slice(0,300).map(id=>{let c=C.find(x=>x.id===id)||{},cl='#b07a20';if(c.category==='专业必修课')cl='#a24f4a';else if(c.category==='专业选修课')cl='#4d7c3f';return{id,symbolSize:12,name:c.name?.substring(0,12)||id,itemStyle:{color:cl},category:c.category||'学科基础课',course:c}});
+  let catColors={'专业必修课':'#a24f4a','学科基础课':'#b07a20','专业选修课':'#4d7c3f'};
   chart.setOption({
     tooltip:{formatter:p=>{let c=p.data.course;if(!c)return p.data.name;let sc=scheduledIds.has(p.data.id)?'✅已安排':'⬜未安排';return`<b>${c.name||p.data.name}</b><br>院系:${c.department||''}<br>学分:${c.credit||''}<br>类别:${c.category||''}<br>状态:${sc}${c.prereq_ids?.length?'<br>先修:'+c.prereq_ids.join(', '):''}`},backgroundColor:'rgba(255,255,255,0.95)',borderColor:'#d8d4ca',textStyle:{color:'#1d2329',fontSize:12}},
-    legend:{data:['专业必修课','学科基础课','专业选修课'],orient:'vertical',left:10,top:20,textStyle:{fontSize:11}},
+    legend:{data:[{name:'专业必修课',itemStyle:{color:'#a24f4a'}},{name:'学科基础课',itemStyle:{color:'#b07a20'}},{name:'专业选修课',itemStyle:{color:'#4d7c3f'}}],orient:'vertical',left:10,top:20,textStyle:{fontSize:11}},
     series:[{type:'graph',layout:'force',roam:true,draggable:true,force:{repulsion:400,edgeLength:60,gravity:0.06},data:nodes,
       links:ls.filter(l=>nodes.find(n=>n.id===l.source)&&nodes.find(n=>n.id===l.target)).slice(0,600),
       label:{show:true,fontSize:9,formatter:p=>p.data.name,color:'#1d2329'},
-      categories:[{name:'专业必修课',itemStyle:{color:'#a24f4a'}},{name:'学科基础课',itemStyle:{color:'#4d7c3f'}},{name:'专业选修课',itemStyle:{color:'#b07a20'}}],
+      categories:[{name:'专业必修课',itemStyle:{color:'#a24f4a'}},{name:'学科基础课',itemStyle:{color:'#b07a20'}},{name:'专业选修课',itemStyle:{color:'#4d7c3f'}}],
       lineStyle:{color:'#b0a89c',curveness:0.2,width:2,opacity:0.7},
       emphasis:{focus:'adjacency',lineStyle:{width:3},label:{fontSize:12,fontWeight:'bold'}}}]
   })
