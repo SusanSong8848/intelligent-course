@@ -43,8 +43,9 @@ IntelligentCoursePlanning/
 │   ├── core/                   # 核心算法（先修图 / 冲突检测 / 调度器）
 │   └── utils/                  # 工具（字符串 / 内嵌 JSON 解析器）
 ├── frontend/                   # Web 前端（纯 HTML + JS，无需构建）
-│   ├── index.html              # 主页面（4 Tab）
-│   └── ai-advisor.html         # AI 选课顾问（DeepSeek API + 离线回退）
+│   ├── index.html              # 主页面（6 Tab：总览/课程/课表/热力图/依赖图）
+│   ├── ai-advisor.html         # AI 选课顾问（DeepSeek API + 离线回退）
+│   └── start.bat               # 一键启动脚本（自动开浏览器+服务器）
 └── docs/                       # 文档
     ├── requirements/           # 项目需求文档
     ├── AI_SKILL.md             # AI 选课建议 SKILL 定义
